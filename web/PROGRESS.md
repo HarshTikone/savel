@@ -5,7 +5,7 @@
 - [x] Part 2
 - [x] Part 3
 - [x] Part 4
-- [ ] Part 5
+- [x] Part 5
 - [ ] Part 6
 - [ ] Part 7
 - [ ] Part 8
@@ -17,6 +17,8 @@
 Part 0: branch harsh-frontend; CLAUDE.md, PROGRESS.md, IMPLEMENTATION_PLAN.md present; only web/ changed.
 
 ## Decisions made during build
+
+- Part 5 verify: 22 tests pass; build OK. Map click -> queue highlight check is HUMAN (queue lands in Part 6). Marker colors are hex copies of tokens (Leaflet/SVG need literals). Tile fallback switches to grid after 3 tileerror events.
 
 - Part 4 verify: 18 tests pass; build OK; mock dev server serves. Visual check at 1280x720 still HUMAN (required in Part 10). Remaining panels are placeholders until Parts 5-9.
 

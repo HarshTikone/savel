@@ -4,6 +4,7 @@ import { useSeries } from './hooks/useSeries'
 import Header from './components/Header'
 import KpiStrip from './components/KpiStrip'
 import Headline from './components/Headline'
+import MapPanel from './components/MapPanel'
 
 function Panel({ title, area, children }) {
   return (
@@ -40,7 +41,15 @@ export default function App() {
         <Headline homes={data.homes} />
       </div>
       <main className="grid">
-        <Panel title="Map" area="map" />
+        <Panel title="Map" area="map">
+          <MapPanel
+            homes={data.homes}
+            blocks={data.state ? data.state.blocks : []}
+            selectedId={selectedHomeId}
+            onSelect={setSelectedHomeId}
+            runKey={data.runId}
+          />
+        </Panel>
         <Panel title="Priority queue" area="queue" />
         <Panel title="Home details" area="details" />
         <Panel title="AI check-in call" area="call" />

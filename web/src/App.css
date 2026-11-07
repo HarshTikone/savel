@@ -48,3 +48,18 @@
     grid-template-areas: "queue" "map" "details" "call" "controls" "events" "accuracy";
   }
 }
+
+.map-panel { display: flex; flex-direction: column; gap: 6px; height: calc(100% - 24px); min-height: 280px; }
+.map-toolbar { display: flex; align-items: center; gap: 10px; }
+.map-body { flex: 1; min-height: 240px; position: relative; }
+.leaflet-host { height: 100%; min-height: 240px; border-radius: 6px; background: #0f1b2b; }
+.grid-map { width: 100%; height: 100%; max-height: 360px; }
+.grid-map .pulse path { animation: pulse 1s ease-in-out 3; }
+@keyframes pulse { 50% { transform: scale(1.12); } }
+.muted { color: var(--muted); font-size: 12px; }
+.legend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; }
+.legend-item { display: flex; align-items: center; gap: 5px; }
+.swatch { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+.swatch.offline { border: 1px dashed var(--muted); background: transparent; }
+.block-label { background: transparent; border: none; box-shadow: none; color: var(--muted); font-size: 11px; }
+@media (prefers-reduced-motion: reduce) { .grid-map .pulse path { animation: none; } }

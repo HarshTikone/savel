@@ -4,7 +4,7 @@
 - [x] Part 1
 - [x] Part 2
 - [x] Part 3
-- [ ] Part 4
+- [x] Part 4
 - [ ] Part 5
 - [ ] Part 6
 - [ ] Part 7
@@ -17,6 +17,8 @@
 Part 0: branch harsh-frontend; CLAUDE.md, PROGRESS.md, IMPLEMENTATION_PLAN.md present; only web/ changed.
 
 ## Decisions made during build
+
+- Part 4 verify: 18 tests pass; build OK; mock dev server serves. Visual check at 1280x720 still HUMAN (required in Part 10). Remaining panels are placeholders until Parts 5-9.
 
 - Part 3 verify: 12 tests pass (3 new hook tests); build OK. Added an initial `connecting` connection state before first data (Header must label it truthfully).
 

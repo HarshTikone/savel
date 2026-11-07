@@ -8,7 +8,7 @@
 - [x] Part 5
 - [x] Part 6
 - [x] Part 7
-- [ ] Part 8
+- [x] Part 8
 - [ ] Part 9
 - [ ] Part 10
 
@@ -17,6 +17,8 @@
 Part 0: branch harsh-frontend; CLAUDE.md, PROGRESS.md, IMPLEMENTATION_PLAN.md present; only web/ changed.
 
 ## Decisions made during build
+
+- Part 8 verify: 40 tests pass; build OK. Banner treats events present at first load and after a run change as already seen (no flood). Past call line uses the newest call_result event.
 
 - Part 7 verify: 34 tests pass; build OK. Chart uses a custom HTML legend (testable in jsdom). Boundary points between measured/estimated/predicted runs reuse real values so lines connect; no points invented.
 

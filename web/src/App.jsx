@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useDashboardData } from './hooks/useDashboardData'
 import { useSeries } from './hooks/useSeries'
 import Header from './components/Header'
@@ -8,6 +8,9 @@ import MapPanel from './components/MapPanel'
 import PriorityQueue from './components/PriorityQueue'
 import HomeDetails from './components/HomeDetails'
 import TemperatureChart from './components/TemperatureChart'
+import CallPanel from './components/CallPanel'
+import EventLog from './components/EventLog'
+import Banner from './components/Banner'
 
 function Panel({ title, area, children }) {
   return (
@@ -23,13 +26,39 @@ export default function App() {
   const [demoLayout, setDemoLayout] = useState(false)
   const [ventBlocked, setVentBlocked] = useState(false)
 
+  const [pulseId, setPulseId] = useState(null)
+  const [callHighlight, setCallHighlight] = useState(false)
+  const lastCallHome = useRef(null)
+
   const onRunChange = useCallback(() => {
     setSelectedHomeId(null)
     setVentBlocked(false)
+    setPulseId(null)
+    setCallHighlight(false)
+    lastCallHome.current = null
   }, [])
 
   const data = useDashboardData({ onRunChange })
   const series = useSeries(selectedHomeId, data.runId)
+
+  // Auto-focus: when a new call appears, select its home, pulse the marker and highlight the panel.
+  const callHome = data.call ? data.call.home_id : null
+  useEffect(() => {
+    if (!callHome) {
+      lastCallHome.current = null
+      return undefined
+    }
+    if (lastCallHome.current === callHome) return undefined
+    lastCallHome.current = callHome
+    setSelectedHomeId(callHome)
+    setPulseId(callHome)
+    setCallHighlight(true)
+    const t = setTimeout(() => {
+      setPulseId(null)
+      setCallHighlight(false)
+    }, 3000)
+    return () => clearTimeout(t)
+  }, [callHome])
 
   return (
     <div className={`app${demoLayout ? ' demo' : ''}`} data-vent-blocked={ventBlocked} >
@@ -39,6 +68,7 @@ export default function App() {
         demoLayout={demoLayout}
         onToggleDemo={() => setDemoLayout((v) => !v)}
       />
+      <Banner events={data.events} ready={data.state !== null} runId={data.runId} />
       <div className="summary">
         <KpiStrip homes={data.homes} state={data.state} />
         <Headline homes={data.homes} />
@@ -51,6 +81,7 @@ export default function App() {
             selectedId={selectedHomeId}
             onSelect={setSelectedHomeId}
             runKey={data.runId}
+            pulseId={pulseId}
           />
         </Panel>
         <Panel title="Priority queue" area="queue">
@@ -68,8 +99,14 @@ export default function App() {
             selectedId={selectedHomeId}
           />
         </Panel>
-        <Panel title="AI check-in call" area="call" />
-        {!demoLayout && <Panel title="Event log" area="events" />}
+        <Panel title="AI check-in call" area="call">
+          <CallPanel call={data.call} events={data.events} highlight={callHighlight} />
+        </Panel>
+        {!demoLayout && (
+          <Panel title="Event log" area="events">
+            <EventLog events={data.events} onSelect={setSelectedHomeId} />
+          </Panel>
+        )}
         <Panel title="Simulator controls" area="controls" />
         {!demoLayout && <Panel title="Accuracy" area="accuracy" />}
       </main>

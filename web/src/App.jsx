@@ -11,6 +11,11 @@ import TemperatureChart from './components/TemperatureChart'
 import CallPanel from './components/CallPanel'
 import EventLog from './components/EventLog'
 import Banner from './components/Banner'
+import SimulatorControls from './components/SimulatorControls'
+import AccuracyPanel from './components/AccuracyPanel'
+import ShortcutHelp from './components/ShortcutHelp'
+import { useSimActions } from './hooks/useSimActions'
+import { useShortcuts } from './hooks/useShortcuts'
 
 function Panel({ title, area, children }) {
   return (
@@ -41,6 +46,14 @@ export default function App() {
   const data = useDashboardData({ onRunChange })
   const series = useSeries(selectedHomeId, data.runId)
 
+  const actions = useSimActions({ state: data.state, ventBlocked, setVentBlocked, refresh: data.refresh })
+  useShortcuts({
+    b: () => actions.toggleBlock('B'),
+    v: () => actions.toggleVent(),
+    r: () => actions.reset(),
+    d: () => setDemoLayout((v) => !v),
+  })
+
   // Auto-focus: when a new call appears, select its home, pulse the marker and highlight the panel.
   const callHome = data.call ? data.call.home_id : null
   useEffect(() => {
@@ -67,6 +80,7 @@ export default function App() {
         connection={data.connection}
         demoLayout={demoLayout}
         onToggleDemo={() => setDemoLayout((v) => !v)}
+        extra={<ShortcutHelp />}
       />
       <Banner events={data.events} ready={data.state !== null} runId={data.runId} />
       <div className="summary">
@@ -107,8 +121,14 @@ export default function App() {
             <EventLog events={data.events} onSelect={setSelectedHomeId} />
           </Panel>
         )}
-        <Panel title="Simulator controls" area="controls" />
-        {!demoLayout && <Panel title="Accuracy" area="accuracy" />}
+        <Panel title="Simulator controls" area="controls">
+          <SimulatorControls state={data.state} ventBlocked={ventBlocked} actions={actions} />
+        </Panel>
+        {!demoLayout && (
+          <Panel title="Accuracy" area="accuracy">
+            <AccuracyPanel accuracy={data.accuracy} />
+          </Panel>
+        )}
       </main>
     </div>
   )

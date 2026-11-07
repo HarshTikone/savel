@@ -9,7 +9,7 @@
 - [x] Part 6
 - [x] Part 7
 - [x] Part 8
-- [ ] Part 9
+- [x] Part 9
 - [ ] Part 10
 
 ## Verify output
@@ -17,6 +17,8 @@
 Part 0: branch harsh-frontend; CLAUDE.md, PROGRESS.md, IMPLEMENTATION_PLAN.md present; only web/ changed.
 
 ## Decisions made during build
+
+- Part 9 verify: 47 tests pass; build OK. Block buttons: aria-pressed = power is cut (from state.blocks), label toggles cut/restore. Sim calls live in hooks/useSimActions.js so shortcuts reuse them.
 
 - Part 8 verify: 40 tests pass; build OK. Banner treats events present at first load and after a run change as already seen (no flood). Past call line uses the newest call_result event.
 

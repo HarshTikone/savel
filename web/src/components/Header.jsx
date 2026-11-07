@@ -8,7 +8,7 @@ const CONNECTION = {
   connecting: { text: 'CONNECTING', cls: 'stale' },
 }
 
-export default function Header({ state, connection, demoLayout, onToggleDemo }) {
+export default function Header({ state, connection, demoLayout, onToggleDemo, extra }) {
   const conn = CONNECTION[connection] || CONNECTION.connecting
   return (
     <header className="header">
@@ -22,6 +22,7 @@ export default function Header({ state, connection, demoLayout, onToggleDemo }) 
         <span>Outdoor {state ? `${state.outdoor_f}°F` : '—'}</span>
         <span>{state ? speedLabel(state.speed) : '—'}</span>
         {state && state.live_call && <span className="pill slowed">Slowed for live call</span>}
+        {extra}
         <button type="button" className="btn" onClick={onToggleDemo} aria-pressed={demoLayout}>
           {demoLayout ? 'Full layout' : 'Demo layout'}
         </button>

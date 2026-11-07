@@ -111,3 +111,19 @@
 .banner-region { min-height: 0; }
 .banner { padding: 6px 12px; border-radius: 6px; font-weight: 600; background: var(--surface); border: 1px solid var(--line); }
 .banner.critical { border-color: var(--sev-critical); color: var(--sev-critical); }
+
+.controls { display: flex; flex-direction: column; gap: 8px; }
+.ctl-group { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.btn[aria-pressed="true"] { border-color: var(--accent); background: #1d3149; }
+.btn:disabled { opacity: 0.55; cursor: progress; }
+.ctl-error { margin: 0; color: var(--sev-critical); font-weight: 600; }
+.spin { animation: spin 1s linear infinite; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.accuracy table { border-collapse: collapse; width: 100%; }
+.accuracy th, .accuracy td { text-align: left; padding: 3px 8px; border-bottom: 1px solid var(--line); font-weight: 400; }
+.accuracy th[scope="col"] { color: var(--muted); font-size: 12px; }
+.accuracy-claim { font-weight: 600; margin: 8px 0 0; }
+.shortcut-help { position: relative; }
+.shortcut-pop { position: absolute; right: 0; top: 36px; z-index: 1000; list-style: none; margin: 0; padding: 8px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; white-space: nowrap; }
+kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; margin-right: 6px; font-family: var(--font-mono); }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }

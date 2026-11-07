@@ -6,12 +6,13 @@ import os
 
 from fastapi import APIRouter, HTTPException, Request, Response
 
-from api.agent import elevenlabs
+from api.agent import briefing, elevenlabs
 
 from api.agent import manager
 from api.agent.manager import current_view, trigger_call  # noqa: F401  (trigger_call re-exported)
 
 router = APIRouter()
+router.include_router(briefing.router)
 log = logging.getLogger("api.calls")
 _bg: set[asyncio.Task] = set()
 

@@ -16,7 +16,7 @@ Plan: docs/SAVEL_Agent_Implementation_Plan_v2.md (kept in the team project). Eac
 - [x] 3 extract.py (Gemini live check must run on your machine: `python scripts/test_gemini.py`; the build VM cannot reach Google)
 - [x] 4 profiles and scripted calls
 - [x] 5 call manager (trigger_call, retries, live waiter, /api/calls/current)
-- [ ] 6 live browser path and webhook
-- [ ] 7 briefings
+- [x] 6 webhook (signed) + live transcript handling (dashboard button still needed from Huzaifa)
+- [x] 7 briefings (GET /api/homes/{id}/briefing, GET /api/incident/summary)
 - [ ] 8 integration and rehearsal
 - [ ] 9 pitch and Devpost

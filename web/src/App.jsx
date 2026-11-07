@@ -5,6 +5,8 @@ import Header from './components/Header'
 import KpiStrip from './components/KpiStrip'
 import Headline from './components/Headline'
 import MapPanel from './components/MapPanel'
+import PriorityQueue from './components/PriorityQueue'
+import HomeDetails from './components/HomeDetails'
 
 function Panel({ title, area, children }) {
   return (
@@ -50,8 +52,15 @@ export default function App() {
             runKey={data.runId}
           />
         </Panel>
-        <Panel title="Priority queue" area="queue" />
-        <Panel title="Home details" area="details" />
+        <Panel title="Priority queue" area="queue">
+          <PriorityQueue homes={data.homes} selectedId={selectedHomeId} onSelect={setSelectedHomeId} />
+        </Panel>
+        <Panel title="Home details" area="details">
+          <HomeDetails
+            home={data.homes.find((h) => h.id === selectedHomeId)}
+            selectedId={selectedHomeId}
+          />
+        </Panel>
         <Panel title="AI check-in call" area="call" />
         {!demoLayout && <Panel title="Event log" area="events" />}
         <Panel title="Simulator controls" area="controls" />

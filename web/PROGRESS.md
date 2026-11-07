@@ -6,7 +6,7 @@
 - [x] Part 3
 - [x] Part 4
 - [x] Part 5
-- [ ] Part 6
+- [x] Part 6
 - [ ] Part 7
 - [ ] Part 8
 - [ ] Part 9
@@ -17,6 +17,8 @@
 Part 0: branch harsh-frontend; CLAUDE.md, PROGRESS.md, IMPLEMENTATION_PLAN.md present; only web/ changed.
 
 ## Decisions made during build
+
+- Part 6 verify: 29 tests pass; build OK. Queue keeps backend order, only filters out heated and slices to 10. Leaving homes stay in the queue (not heated).
 
 - Part 5 verify: 22 tests pass; build OK. Map click -> queue highlight check is HUMAN (queue lands in Part 6). Marker colors are hex copies of tokens (Leaflet/SVG need literals). Tile fallback switches to grid after 3 tileerror events.
 

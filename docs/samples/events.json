@@ -1,0 +1,142 @@
+[
+    {
+        "t": "2026-11-08T04:15:00+00:00",
+        "type": "call_result",
+        "home_id": "H-27",
+        "text": "H-27: scripted stub, no outcome",
+        "severity": "info"
+    },
+    {
+        "t": "2026-11-08T04:15:00+00:00",
+        "type": "call_started",
+        "home_id": "H-27",
+        "text": "Scripted check-in call to H-27 (critical)",
+        "severity": "info"
+    },
+    {
+        "t": "2026-11-08T04:15:00+00:00",
+        "type": "threshold",
+        "home_id": "H-27",
+        "text": "H-27 reached critical",
+        "severity": "critical"
+    },
+    {
+        "t": "2026-11-08T03:40:00+00:00",
+        "type": "vent_blocked",
+        "home_id": "H-27",
+        "text": "Furnace vent blocked at H-27",
+        "severity": "warning"
+    },
+    {
+        "t": "2026-11-08T03:40:00+00:00",
+        "type": "call_result",
+        "home_id": "H-15",
+        "text": "H-15: scripted stub, no outcome",
+        "severity": "info"
+    },
+    {
+        "t": "2026-11-08T03:40:00+00:00",
+        "type": "call_started",
+        "home_id": "H-15",
+        "text": "Scripted check-in call to H-15 (warning)",
+        "severity": "info"
+    },
+    {
+        "t": "2026-11-08T03:40:00+00:00",
+        "type": "threshold",
+        "home_id": "H-15",
+        "text": "H-15 reached warning",
+        "severity": "warning"
+    },
+    {
+        "t": "2026-11-08T03:00:00+00:00",
+        "type": "call_result",
+        "home_id": "H-19",
+        "text": "H-19: scripted stub, no outcome",
+        "severity": "info"
+    },
+    {
+        "t": "2026-11-08T03:00:00+00:00",
+        "type": "call_started",
+        "home_id": "H-19",
+        "text": "Scripted check-in call to H-19 (warning)",
+        "severity": "info"
+    },
+    {
+        "t": "2026-11-08T03:00:00+00:00",
+        "type": "threshold",
+        "home_id": "H-19",
+        "text": "H-19 reached warning",
+        "severity": "warning"
+    },
+    {
+        "t": "2026-11-08T02:20:00+00:00",
+        "type": "call_result",
+        "home_id": "H-11",
+        "text": "H-11: scripted stub, no outcome",
+        "severity": "info"
+    },
+    {
+        "t": "2026-11-08T02:20:00+00:00",
+        "type": "call_started",
+        "home_id": "H-11",
+        "text": "Scripted check-in call to H-11 (warning)",
+        "severity": "info"
+    },
+    {
+        "t": "2026-11-08T02:20:00+00:00",
+        "type": "threshold",
+        "home_id": "H-11",
+        "text": "H-11 reached warning",
+        "severity": "warning"
+    },
+    {
+        "t": "2026-11-08T02:00:00+00:00",
+        "type": "call_result",
+        "home_id": "H-20",
+        "text": "H-20: scripted stub, no outcome",
+        "severity": "info"
+    },
+    {
+        "t": "2026-11-08T02:00:00+00:00",
+        "type": "call_started",
+        "home_id": "H-20",
+        "text": "Scripted check-in call to H-20 (warning)",
+        "severity": "info"
+    },
+    {
+        "t": "2026-11-08T02:00:00+00:00",
+        "type": "call_result",
+        "home_id": "H-18",
+        "text": "H-18: scripted stub, no outcome",
+        "severity": "info"
+    },
+    {
+        "t": "2026-11-08T02:00:00+00:00",
+        "type": "call_started",
+        "home_id": "H-18",
+        "text": "Scripted check-in call to H-18 (warning)",
+        "severity": "info"
+    },
+    {
+        "t": "2026-11-08T02:00:00+00:00",
+        "type": "call_result",
+        "home_id": "H-17",
+        "text": "H-17: scripted stub, no outcome",
+        "severity": "info"
+    },
+    {
+        "t": "2026-11-08T02:00:00+00:00",
+        "type": "call_started",
+        "home_id": "H-17",
+        "text": "Scripted check-in call to H-17 (warning)",
+        "severity": "info"
+    },
+    {
+        "t": "2026-11-08T02:00:00+00:00",
+        "type": "call_result",
+        "home_id": "H-16",
+        "text": "H-16: scripted stub, no outcome",
+        "severity": "info"
+    }
+]

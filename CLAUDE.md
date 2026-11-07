@@ -1,0 +1,12 @@
+# SAVEL backend rules for coding agents
+- Read docs/backend-prd.md and docs/SAVEL_Backend_Implementation_Plan.md before any change.
+- One uvicorn worker. Never add --workers.
+- Never use now() or wall-clock time in queries or logic; use sim_now.
+- Every query filters by the current run_id.
+- Never change API paths, field names, types or enum values (api/models.py is the contract).
+- Risk is deterministic; no LLM in ranking.
+- api/risk.py and api/calls.py are stubs owned by Harsh; do not extend them.
+- Never edit web/.
+- No secrets in code or commits; .env is gitignored.
+- Test: docker compose -f docker-compose.dev.yml up -d db && pytest -q api/tests
+- Smoke: bash scripts/smoke.sh

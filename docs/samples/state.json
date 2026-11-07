@@ -1,0 +1,25 @@
+{
+    "run_id": "r-20261107T220723",
+    "sim_now": "2026-11-08T04:30:00+00:00",
+    "outdoor_f": 5.0,
+    "speed": 300,
+    "live_call": false,
+    "blocks": [
+        {
+            "block": "A",
+            "power_on": true
+        },
+        {
+            "block": "B",
+            "power_on": false
+        },
+        {
+            "block": "C",
+            "power_on": true
+        },
+        {
+            "block": "D",
+            "power_on": true
+        }
+    ]
+}

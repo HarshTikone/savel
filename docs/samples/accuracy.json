@@ -1,0 +1,26 @@
+[
+    {
+        "horizon_min": 30,
+        "k_source": "learned",
+        "mae_f": 0.31,
+        "n": 96
+    },
+    {
+        "horizon_min": 30,
+        "k_source": "global",
+        "mae_f": 0.82,
+        "n": 96
+    },
+    {
+        "horizon_min": 60,
+        "k_source": "learned",
+        "mae_f": 0.33,
+        "n": 72
+    },
+    {
+        "horizon_min": 60,
+        "k_source": "global",
+        "mae_f": 1.66,
+        "n": 72
+    }
+]

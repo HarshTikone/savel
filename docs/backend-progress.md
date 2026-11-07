@@ -10,7 +10,7 @@
 - [x] Part 6 - risk loop, call trigger, stubs, sim proxy, homes and state api
 - [x] Part 7 - series, events, accuracy, reset isolation, offline estimates, dev compose
 - [x] Part 8 - production compose and caddyfile (files + local rehearsal; live domain pending HUMAN)
-- [ ] Part 9 - readme, samples, resilience, rehearsal
+- [x] Part 9 - readme, samples, resilience, rehearsal
 
 ## Verify output
 
@@ -130,6 +130,27 @@ $ BASE=http://localhost bash scripts/smoke.sh -> PASS after 2s
 LIVE gate (https://<domain>) PENDING HUMAN: Tiger Cloud URL, Vultr VM, GoDaddy domain + A record, team phone numbers.
 ```
 
+### Part 9
+```
+$ pytest -q api/tests && bash scripts/smoke.sh && echo ALL_OK
+25 passed / PASS after 2s / ALL_OK
+$ docker compose stop sim; POST /api/sim/cut_power/A
+502 {"detail":"simulator unavailable"}   ; /api/homes still serves cache ; /api/state 200 (cached)
+$ docker compose start sim; sleep 5; curl /api/health
+{"ok":true,...,"run_id":"r-20261107T220454",...}   (recovered, no api restart)
+$ docker compose stop db; curl /api/health -> 503 {"ok":false,...}; loop logs "loop cycle failed" and continues
+$ docker compose start db -> /api/health 200, rows_ingested rising again
+Timing: "loop cycle N took 17-22 ms (40 homes)" (laptop; re-check on VM)
+$ python3 scripts/rehearse.py
+run 1 r-20261107T220526: at-risk order ['H-12','H-13','H-14','H-16','H-17','H-18','H-20','H-11','H-19','H-15','H-27']; H-27 critical CO 70.0
+run 2 r-20261107T220602: (identical)
+run 3 r-20261107T220639: (identical)
+SAME_BEHAVIOR
+$ git grep -nE '(\+1[0-9]{10}|sk-|AIza|postgres://...)' -- . ':!.env.example'
+only hits: placeholder/regex text inside docs/SAVEL_Backend_Implementation_Plan.md -> no secrets
+PENDING HUMAN: push (403 for shaw-piyush on HarshTikone/savel), PR backend -> main, VM timing check.
+```
+
 ## Decisions made during build
 - PRD v4 transcribed from the PDF into docs/backend-prd.md (code, schema, SQL verbatim).
 - Local Python is 3.14 (no asyncpg 0.30.0 wheel); dev venv uses Python 3.12 via `uv venv -p 3.12`. Dockerfiles use python:3.12-slim.
@@ -161,3 +182,5 @@ LIVE gate (https://<domain>) PENDING HUMAN: Tiger Cloud URL, Vultr VM, GoDaddy d
 - Part 8 files done and rehearsed locally; the live-domain gate waits on HUMAN prerequisites (Tiger Cloud, Vultr VM, domain, phones).
 - Production api seeds Tiger Cloud on container start, so step 1 (seed from laptop) is optional; schema.sql must still be applied once with psql.
 - Caddy DOMAIN is required (compose fails fast if unset).
+- Added scripts/rehearse.py (3-run determinism check) used for the rehearsal step.
+- Sample responses in docs/samples/ were captured 20 s after a reset with H-27's vent blocked for 10 s.

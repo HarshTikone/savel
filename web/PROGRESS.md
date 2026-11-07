@@ -18,6 +18,8 @@ Part 0: branch harsh-frontend; CLAUDE.md, PROGRESS.md, IMPLEMENTATION_PLAN.md pr
 
 ## Decisions made during build
 
+- Map fix after first visual review: invalidateSize + ResizeObserver (tiles did not fill the box, initial zoom too wide); block labels are non-interactive divIcon markers at each block corner instead of permanent tooltips (they overlapped).
+
 - Part 10 verify: 47 tests pass; build OK; preview serves; no secrets in src. check:contract could not reach a backend at localhost:8000 (not running). Playwright screenshot script skipped (optional). PR not opened yet: waiting on live run and HUMAN sign-off.
 
 - Part 9 verify: 47 tests pass; build OK. Block buttons: aria-pressed = power is cut (from state.blocks), label toggles cut/restore. Sim calls live in hooks/useSimActions.js so shortcuts reuse them.

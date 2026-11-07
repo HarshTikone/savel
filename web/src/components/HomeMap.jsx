@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { MapContainer, TileLayer, CircleMarker, Rectangle, Tooltip, useMap } from 'react-leaflet'
+import L from 'leaflet'
+import { MapContainer, TileLayer, CircleMarker, Rectangle, Marker, Tooltip, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { STATUS_META } from '../data/contract'
 import { markerStyle, ALARM, OUTLINE } from '../lib/colors'
@@ -7,14 +8,47 @@ import { temp, stormDuration } from '../lib/format'
 
 const TILE_FAIL_LIMIT = 3
 
-function FitBounds({ homes, runKey }) {
+// Keeps Leaflet's size in sync with its container and fits to the homes once per run.
+// Re-fits after the first size change so the initial (pre-layout) measurement doesn't stick.
+function MapController({ homes, runKey }) {
   const map = useMap()
   const fitted = useRef(null)
+  const refitOnResize = useRef(true)
+  const homesRef = useRef(homes)
+  homesRef.current = homes
+
+  const fit = () => {
+    const list = homesRef.current
+    if (list.length === 0) return false
+    map.fitBounds(list.map((h) => [h.lat, h.lon]), { padding: [30, 30] })
+    return true
+  }
+
   useEffect(() => {
     if (homes.length === 0 || fitted.current === runKey) return
-    map.fitBounds(homes.map((h) => [h.lat, h.lon]), { padding: [30, 30] })
-    fitted.current = runKey
+    map.invalidateSize()
+    if (fit()) {
+      fitted.current = runKey
+      refitOnResize.current = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [homes, runKey, map])
+
+  useEffect(() => {
+    const el = map.getContainer()
+    if (typeof ResizeObserver === 'undefined') return undefined
+    const ro = new ResizeObserver(() => {
+      map.invalidateSize()
+      if (refitOnResize.current && fitted.current !== null) {
+        fit()
+        refitOnResize.current = false
+      }
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map])
+
   return null
 }
 
@@ -50,7 +84,7 @@ export default function HomeMap({ homes, blocks = [], selectedId, onSelect, runK
           },
         }}
       />
-      <FitBounds homes={homes} runKey={runKey} />
+      <MapController homes={homes} runKey={runKey} />
       {Object.entries(blockBounds).map(([b, r]) => {
         const on = powerOf(b)
         const pad = 0.0012
@@ -59,11 +93,24 @@ export default function HomeMap({ homes, blocks = [], selectedId, onSelect, runK
             key={`block-${b}`}
             bounds={[[r.s - pad, r.w - pad], [r.n + pad, r.e + pad]]}
             pathOptions={{ color: on ? OUTLINE : ALARM, weight: 2, dashArray: on ? undefined : '6 4', fill: false }}
-          >
-            <Tooltip permanent direction="top" className="block-label">
-              {on ? `Block ${b}` : `Block ${b} · no power`}
-            </Tooltip>
-          </Rectangle>
+          />
+        )
+      })}
+      {Object.entries(blockBounds).map(([b, r]) => {
+        const on = powerOf(b)
+        const pad = 0.0012
+        return (
+          <Marker
+            key={`label-${b}`}
+            position={[r.n + pad, r.w - pad]}
+            interactive={false}
+            icon={L.divIcon({
+              className: 'block-tag',
+              html: `<span class="${on ? '' : 'off'}">${on ? `Block ${b}` : `Block ${b} · no power`}</span>`,
+              iconSize: [0, 0],
+              iconAnchor: [0, 22],
+            })}
+          />
         )
       })}
       {homes.map((h) => (

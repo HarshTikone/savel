@@ -2,7 +2,7 @@
 // Usage: VITE_API_TARGET=http://localhost:8000 npm run check:contract
 import {
   HOME_KEYS, STATUSES, CALL_STATUSES, OUTCOMES, PHASES, SOURCES, EVENT_TYPES, SEVERITIES, K_SOURCES,
-} from '../src/data/contract.js'
+} from '../src/data/enums.js'
 
 const base = (process.env.VITE_API_TARGET || 'http://localhost:8000').replace(/\/$/, '')
 const problems = []

@@ -2,7 +2,7 @@
 
 ## Checklist
 - [x] Part 0 - branch, rules, progress tracker
-- [ ] Part 1 - config, schema, local timescaledb
+- [x] Part 1 - config, schema, local timescaledb
 - [ ] Part 2 - simulator
 - [ ] Part 3 - db pool, models, state, ingest, seed, health
 - [ ] Part 4 - prediction math and tests
@@ -21,7 +21,25 @@ OK
 GITIGNORE_OK
 ```
 
+### Part 1
+```
+$ bash scripts/psql.sh -c '\dt'
+ public | calls       | table | postgres
+ public | homes       | table | postgres
+ public | predictions | table | postgres
+ public | readings    | table | postgres
+(4 rows)
+$ ... timescaledb_information.hypertables
+ readings
+$ bash scripts/psql.sh -v ON_ERROR_STOP=1 -f - < api/schema.sql
+(all NOTICE ... already exists, skipping)
+IDEMPOTENT_OK
+```
+
 ## Decisions made during build
 - PRD v4 transcribed from the PDF into docs/backend-prd.md (code, schema, SQL verbatim).
 - Local Python is 3.14 (no asyncpg 0.30.0 wheel); dev venv uses Python 3.12 via `uv venv -p 3.12`. Dockerfiles use python:3.12-slim.
 - `psql` is not installed on the dev laptop; verify gates run psql inside the db container (`docker compose -f docker-compose.dev.yml exec db psql -U postgres -d savel`).
+- schema.sql adds `CREATE EXTENSION IF NOT EXISTS timescaledb;` as its first line so it also works on a plain database; otherwise verbatim PRD.
+- .env.example keeps Harsh's voice/AI keys (empty) in a separate section.
+- Added scripts/psql.sh (psql inside the dev db container).

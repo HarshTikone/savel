@@ -4,7 +4,7 @@
 - [x] Part 0 - branch, rules, progress tracker
 - [x] Part 1 - config, schema, local timescaledb
 - [x] Part 2 - simulator
-- [ ] Part 3 - db pool, models, state, ingest, seed, health
+- [x] Part 3 - db pool, models, state, ingest, seed, health
 - [ ] Part 4 - prediction math and tests
 - [ ] Part 5 - sql queries with fixture tests
 - [ ] Part 6 - risk loop, call trigger, stubs, sim proxy, homes and state api
@@ -51,6 +51,20 @@ receiver: batches 1..16 (pre-warm, 00:45Z..02:00Z, 5-min steps, sent in ~10 ms) 
 16 38 [...] r-20261107T215325 2026-11-08T02:00:00Z
 ```
 
+### Part 3
+```
+$ python -m api.seed_homes && psql -c "select count(*) from homes;"
+seeded 40 homes / count 40
+$ pytest -q api/tests/test_ingest.py
+6 passed in 0.28s
+$ uvicorn api.main:app & python sim/simulator.py & ; curl /api/health; sleep 3; curl /api/health
+{"ok":true,"sim_now":"2026-11-08T02:25:00+00:00","run_id":"r-20261107T215546","rows_ingested":798}
+{"ok":true,"sim_now":"2026-11-08T02:40:00+00:00","run_id":"r-20261107T215546","rows_ingested":912}
+(+38/tick: 40 homes minus 2 battery-less Block B homes offline during the pre-warm outage)
+$ select run_id, count(*) from readings ...
+ r-20261107T215546 |   912
+```
+
 ## Decisions made during build
 - PRD v4 transcribed from the PDF into docs/backend-prd.md (code, schema, SQL verbatim).
 - Local Python is 3.14 (no asyncpg 0.30.0 wheel); dev venv uses Python 3.12 via `uv venv -p 3.12`. Dockerfiles use python:3.12-slim.
@@ -63,3 +77,7 @@ receiver: batches 1..16 (pre-warm, 00:45Z..02:00Z, 5-min steps, sent in ~10 ms) 
 - Simulator posts each batch while holding its lock, so no stale old-run batch can arrive after a reset's new-run batches.
 - Blocked vent with a tripped furnace holds CO steady (no combustion, no clearing) until the vent is cleared.
 - Same-second resets get a -2, -3 suffix on run_id so it stays unique.
+- State.reset(run_id) is idempotent per run_id (the sim's pre-warm batches already switch the run before the /api/sim/reset proxy returns, and a second reset must not wipe sim_now).
+- Reset event time = first timestamp of the new run's first batch (or the sim's reported sim_now on proxy reset).
+- Test isolation: each test gets a fresh State and closes the asyncpg pool (pool is bound to the test's event loop); unique r-test-<uuid> run ids.
+- No python-dotenv (not in the PRD pins): code defaults match .env.example for local runs; Docker passes .env via env_file.

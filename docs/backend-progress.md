@@ -6,7 +6,7 @@
 - [x] Part 2 - simulator
 - [x] Part 3 - db pool, models, state, ingest, seed, health
 - [x] Part 4 - prediction math and tests
-- [ ] Part 5 - sql queries with fixture tests
+- [x] Part 5 - sql queries with fixture tests
 - [ ] Part 6 - risk loop, call trigger, stubs, sim proxy, homes and state api
 - [ ] Part 7 - series, events, accuracy, reset isolation, offline estimates, dev compose
 - [ ] Part 8 - production compose and caddyfile
@@ -73,6 +73,14 @@ $ python -c "...hours_to(64,5,60,0.10), hours_to(64,5,50,0.10)"
 0.7 2.71
 ```
 
+### Part 5
+```
+$ pytest -q api/tests/test_queries.py
+4 passed (test_k_fit k=0.10±0.005 n=10; skips heated/below-out; latest; accuracy learned 0.20 global 0.50, 60-min rows n=0)
+$ pytest -q api/tests
+16 passed in 0.33s
+```
+
 ## Decisions made during build
 - PRD v4 transcribed from the PDF into docs/backend-prd.md (code, schema, SQL verbatim).
 - Local Python is 3.14 (no asyncpg 0.30.0 wheel); dev venv uses Python 3.12 via `uv venv -p 3.12`. Dockerfiles use python:3.12-slim.
@@ -90,3 +98,5 @@ $ python -c "...hours_to(64,5,60,0.10), hours_to(64,5,50,0.10)"
 - Test isolation: each test gets a fresh State and closes the asyncpg pool (pool is bound to the test's event loop); unique r-test-<uuid> run ids.
 - No python-dotenv (not in the PRD pins): code defaults match .env.example for local runs; Docker passes .env via env_file.
 - predict_curve heated branch: T(h) = 68 + (T_now - 68)·e^(-1.5h), same model as the simulator.
+- K_FIT_SQL: the only edit to the PRD SQL is `$2::timestamptz` (asyncpg otherwise infers `$2 - interval` as interval and fails). ACCURACY_SQL is verbatim.
+- queries.py also holds the small async fetch helpers (fetch_k_fit, fetch_latest, fetch_accuracy) so all SQL stays in one module.

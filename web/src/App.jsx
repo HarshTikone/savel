@@ -7,6 +7,7 @@ import Headline from './components/Headline'
 import MapPanel from './components/MapPanel'
 import PriorityQueue from './components/PriorityQueue'
 import HomeDetails from './components/HomeDetails'
+import TemperatureChart from './components/TemperatureChart'
 
 function Panel({ title, area, children }) {
   return (
@@ -31,7 +32,7 @@ export default function App() {
   const series = useSeries(selectedHomeId, data.runId)
 
   return (
-    <div className={`app${demoLayout ? ' demo' : ''}`} data-vent-blocked={ventBlocked} data-series={series.series ? 'yes' : 'no'}>
+    <div className={`app${demoLayout ? ' demo' : ''}`} data-vent-blocked={ventBlocked} >
       <Header
         state={data.state}
         connection={data.connection}
@@ -58,6 +59,12 @@ export default function App() {
         <Panel title="Home details" area="details">
           <HomeDetails
             home={data.homes.find((h) => h.id === selectedHomeId)}
+            selectedId={selectedHomeId}
+          />
+          <TemperatureChart
+            series={series.series}
+            error={series.error}
+            loading={series.loading}
             selectedId={selectedHomeId}
           />
         </Panel>

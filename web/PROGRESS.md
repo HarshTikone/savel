@@ -7,7 +7,7 @@
 - [x] Part 4
 - [x] Part 5
 - [x] Part 6
-- [ ] Part 7
+- [x] Part 7
 - [ ] Part 8
 - [ ] Part 9
 - [ ] Part 10
@@ -17,6 +17,8 @@
 Part 0: branch harsh-frontend; CLAUDE.md, PROGRESS.md, IMPLEMENTATION_PLAN.md present; only web/ changed.
 
 ## Decisions made during build
+
+- Part 7 verify: 34 tests pass; build OK. Chart uses a custom HTML legend (testable in jsdom). Boundary points between measured/estimated/predicted runs reuse real values so lines connect; no points invented.
 
 - Part 6 verify: 29 tests pass; build OK. Queue keeps backend order, only filters out heated and slices to 10. Leaving homes stay in the queue (not heated).
 

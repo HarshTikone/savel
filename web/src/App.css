@@ -84,3 +84,10 @@
 .details-row dt { color: var(--muted); }
 .details-row dd { margin: 0; text-align: right; }
 @media (prefers-reduced-motion: reduce) { .queue-row, .queue-row.moved { transition: none; transform: none; } }
+
+.chart-wrap { margin-top: 8px; min-height: 220px; }
+.chart-legend { list-style: none; display: flex; gap: 16px; margin: 0 0 4px; padding: 0; font-size: 12px; }
+.chart-legend li { display: flex; align-items: center; gap: 6px; }
+.chart-legend .line { display: inline-block; width: 22px; border-top: 3px solid; }
+.chart-legend .dotted { border-top-style: dotted; }
+.chart-legend .dashed { border-top-style: dashed; }

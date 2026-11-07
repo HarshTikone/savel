@@ -5,7 +5,7 @@
 - [x] Part 1 - config, schema, local timescaledb
 - [x] Part 2 - simulator
 - [x] Part 3 - db pool, models, state, ingest, seed, health
-- [ ] Part 4 - prediction math and tests
+- [x] Part 4 - prediction math and tests
 - [ ] Part 5 - sql queries with fixture tests
 - [ ] Part 6 - risk loop, call trigger, stubs, sim proxy, homes and state api
 - [ ] Part 7 - series, events, accuracy, reset isolation, offline estimates, dev compose
@@ -65,6 +65,14 @@ $ select run_id, count(*) from readings ...
  r-20261107T215546 |   912
 ```
 
+### Part 4
+```
+$ pytest -q api/tests/test_predict.py
+6 passed in 0.05s
+$ python -c "...hours_to(64,5,60,0.10), hours_to(64,5,50,0.10)"
+0.7 2.71
+```
+
 ## Decisions made during build
 - PRD v4 transcribed from the PDF into docs/backend-prd.md (code, schema, SQL verbatim).
 - Local Python is 3.14 (no asyncpg 0.30.0 wheel); dev venv uses Python 3.12 via `uv venv -p 3.12`. Dockerfiles use python:3.12-slim.
@@ -81,3 +89,4 @@ $ select run_id, count(*) from readings ...
 - Reset event time = first timestamp of the new run's first batch (or the sim's reported sim_now on proxy reset).
 - Test isolation: each test gets a fresh State and closes the asyncpg pool (pool is bound to the test's event loop); unique r-test-<uuid> run ids.
 - No python-dotenv (not in the PRD pins): code defaults match .env.example for local runs; Docker passes .env via env_file.
+- predict_curve heated branch: T(h) = 68 + (T_now - 68)·e^(-1.5h), same model as the simulator.

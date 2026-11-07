@@ -40,12 +40,13 @@ SCHEMA = {
 }
 
 
-def transcript_text(transcript: list[dict] | str | None) -> str:
+def transcript_text(transcript: list[dict | str] | str | None) -> str:
     if not transcript:
         return ""
     if isinstance(transcript, str):
         return transcript
-    return "\n".join(f"{t.get('role', 'unknown')}: {t.get('text', '')}" for t in transcript)
+    return "\n".join(t if isinstance(t, str) else f"{t.get('role', 'unknown')}: {t.get('text', '')}"
+                     for t in transcript)
 
 
 def _resident_lines(text: str) -> str:

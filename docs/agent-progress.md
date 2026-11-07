@@ -14,8 +14,8 @@ Plan: docs/SAVEL_Agent_Implementation_Plan_v2.md (kept in the team project). Eac
 - [x] 2 risk.py (+9 tests)
 - [ ] 1 Keys and agent variables (human steps in ElevenLabs)
 - [x] 3 extract.py (Gemini live check must run on your machine: `python scripts/test_gemini.py`; the build VM cannot reach Google)
-- [ ] 4 profiles and scripted calls
-- [ ] 5 call manager
+- [x] 4 profiles and scripted calls
+- [x] 5 call manager (trigger_call, retries, live waiter, /api/calls/current)
 - [ ] 6 live browser path and webhook
 - [ ] 7 briefings
 - [ ] 8 integration and rehearsal

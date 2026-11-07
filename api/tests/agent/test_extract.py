@@ -63,3 +63,9 @@ async def test_extract_uses_gemini_when_ok(monkeypatch):
                         "medical_issue": False, "can_leave": None, "summary": "s"})
     d = await ex.extract(tr("anything"))
     assert d["source"] == "gemini" and ex.map_outcome(d) == "needs_help"
+
+
+def test_transcript_text_accepts_plain_strings():
+    t = ex.transcript_text(["SAVEL: hi", "Resident: no heat"])
+    assert t == "SAVEL: hi\nResident: no heat"
+    assert ex.fallback_extract(t)["has_heat"] is False

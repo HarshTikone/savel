@@ -10,13 +10,15 @@
 - [x] Part 7
 - [x] Part 8
 - [x] Part 9
-- [ ] Part 10
+- [ ] Part 10 (code, README, contract script done; live run, demo runs and PR pending)
 
 ## Verify output
 
 Part 0: branch harsh-frontend; CLAUDE.md, PROGRESS.md, IMPLEMENTATION_PLAN.md present; only web/ changed.
 
 ## Decisions made during build
+
+- Part 10 verify: 47 tests pass; build OK; preview serves; no secrets in src. check:contract could not reach a backend at localhost:8000 (not running). Playwright screenshot script skipped (optional). PR not opened yet: waiting on live run and HUMAN sign-off.
 
 - Part 9 verify: 47 tests pass; build OK. Block buttons: aria-pressed = power is cut (from state.blocks), label toggles cut/restore. Sim calls live in hooks/useSimActions.js so shortcuts reuse them.
 

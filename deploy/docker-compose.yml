@@ -1,21 +1,43 @@
+# Production on the Vultr VM: cd deploy && docker compose up -d --build
+# Needs deploy/.env (never committed): DATABASE_URL (Tiger Cloud, ?sslmode=require), DOMAIN,
+# DEMO_PHONE_HOMES, CORS_ORIGINS=https://<domain>, plus Harsh's keys. Only Caddy publishes ports.
 services:
   api:
-    build: ../api
-    env_file: ../.env
+    build: {context: .., dockerfile: api/Dockerfile}
+    env_file: [{path: .env, required: false}]
+    environment:
+      SIM_URL: http://sim:8001
+    restart: unless-stopped
     expose: ["8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
   sim:
-    build: ../sim
-    env_file: ../.env
+    build: {context: .., dockerfile: sim/Dockerfile}
+    env_file: [{path: .env, required: false}]
+    environment:
+      INGEST_URL: http://api:8000/api/ingest
+    restart: unless-stopped
     expose: ["8001"]
+    depends_on:
+      api: {condition: service_healthy}
+
   caddy:
     image: caddy:2
+    restart: unless-stopped
     ports: ["80:80", "443:443"]
     environment:
-      DOMAIN: ${DOMAIN}
+      DOMAIN: ${DOMAIN:?set DOMAIN in deploy/.env}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - ../web/dist:/srv/web
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../web/dist:/srv/web:ro
       - caddy_data:/data
+      - caddy_config:/config
     depends_on: [api]
+
 volumes:
   caddy_data:
+  caddy_config:

@@ -9,7 +9,7 @@
 - [x] Part 5 - sql queries with fixture tests
 - [x] Part 6 - risk loop, call trigger, stubs, sim proxy, homes and state api
 - [x] Part 7 - series, events, accuracy, reset isolation, offline estimates, dev compose
-- [ ] Part 8 - production compose and caddyfile
+- [x] Part 8 - production compose and caddyfile (files + local rehearsal; live domain pending HUMAN)
 - [ ] Part 9 - readme, samples, resilience, rehearsal
 
 ## Verify output
@@ -116,6 +116,20 @@ $ POST /api/sim/reset; sleep 3; curl /api/state
 api logs: seeded 40 homes; loop cycle took 17-22 ms (40 homes)
 ```
 
+### Part 8
+```
+LOCAL rehearsal of deploy/docker-compose.yml (DOMAIN=:80, DATABASE_URL -> local TimescaleDB via host.docker.internal):
+$ curl localhost/api/health
+{"ok":true,"sim_now":"2026-11-08T03:00:00+00:00","run_id":"r-20261107T220348","rows_ingested":1064}
+$ curl localhost/api/state     -> speed 300, run_id, Block B off
+$ POST /api/sim/reset; curl /api/homes -> H-16 critical risk 100 ...
+$ curl -I localhost/           -> HTTP/1.1 200 OK (Caddy, placeholder web/dist)
+$ curl localhost/some/spa/route -> index.html (SPA fallback)
+$ curl localhost:8001/state    -> 000 (simulator not published)
+$ BASE=http://localhost bash scripts/smoke.sh -> PASS after 2s
+LIVE gate (https://<domain>) PENDING HUMAN: Tiger Cloud URL, Vultr VM, GoDaddy domain + A record, team phone numbers.
+```
+
 ## Decisions made during build
 - PRD v4 transcribed from the PDF into docs/backend-prd.md (code, schema, SQL verbatim).
 - Local Python is 3.14 (no asyncpg 0.30.0 wheel); dev venv uses Python 3.12 via `uv venv -p 3.12`. Dockerfiles use python:3.12-slim.
@@ -144,3 +158,6 @@ api logs: seeded 40 homes; loop cycle took 17-22 ms (40 homes)
 - api container seeds homes on startup (idempotent upsert, real phones from DEMO_PHONE_HOMES env) before starting one uvicorn worker.
 - Dev compose: sim waits for api healthy so the pre-warm history is ingested; env_file .env is optional.
 - Series for a home that never reported returns actual [] and a 25-point predicted curve from its estimate.
+- Part 8 files done and rehearsed locally; the live-domain gate waits on HUMAN prerequisites (Tiger Cloud, Vultr VM, domain, phones).
+- Production api seeds Tiger Cloud on container start, so step 1 (seed from laptop) is optional; schema.sql must still be applied once with psql.
+- Caddy DOMAIN is required (compose fails fast if unset).

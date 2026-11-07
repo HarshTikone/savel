@@ -8,7 +8,7 @@
 - [x] Part 4 - prediction math and tests
 - [x] Part 5 - sql queries with fixture tests
 - [x] Part 6 - risk loop, call trigger, stubs, sim proxy, homes and state api
-- [ ] Part 7 - series, events, accuracy, reset isolation, offline estimates, dev compose
+- [x] Part 7 - series, events, accuracy, reset isolation, offline estimates, dev compose
 - [ ] Part 8 - production compose and caddyfile
 - [ ] Part 9 - readme, samples, resilience, rehearsal
 
@@ -99,6 +99,23 @@ $ POST /api/sim/block_vent/H-27; sleep 12
 $ POST /api/sim/foo/1 -> 400 {"detail":"unknown action foo"}
 ```
 
+### Part 7
+```
+$ pytest -q api/tests
+25 passed in 0.53s
+$ docker compose -f docker-compose.dev.yml up -d --build; sleep 15; bash scripts/smoke.sh
+PASS after 2s: Block B at risk [H-16:critical,H-13:critical,H-12:critical,H-14:critical,H-17:warning,H-20:warning]; rows_ingested 2052 -> 2128
+SMOKE_OK
+$ curl /api/events  -> newest first: call_result/call_started (stub) events ...
+$ curl /api/homes/H-13/series -> 18 actual, 25 predicted
+$ sleep 60; curl /api/accuracy
+[{"horizon_min":30,"k_source":"learned","mae_f":0.25,"n":224},{"horizon_min":30,"k_source":"global","mae_f":0.81,"n":224},
+ {"horizon_min":60,"k_source":"learned","mae_f":0.3,"n":200},{"horizon_min":60,"k_source":"global","mae_f":1.59,"n":200}]
+$ POST /api/sim/reset; sleep 3; curl /api/state
+{"run_id":"r-20261107T220304","sim_now":"2026-11-08T02:15:00+00:00",...,"speed":300,"blocks":[... B false ...]}
+api logs: seeded 40 homes; loop cycle took 17-22 ms (40 homes)
+```
+
 ## Decisions made during build
 - PRD v4 transcribed from the PDF into docs/backend-prd.md (code, schema, SQL verbatim).
 - Local Python is 3.14 (no asyncpg 0.30.0 wheel); dev venv uses Python 3.12 via `uv venv -p 3.12`. Dockerfiles use python:3.12-slim.
@@ -124,3 +141,6 @@ $ POST /api/sim/foo/1 -> 400 {"detail":"unknown action foo"}
 - Power events come from both the proxy (immediate) and the loop's block-state diff (catches pre-warm and direct sim changes); the proxy updates prev_power so they never double-log.
 - The sim proxy maps simulator 4xx (unknown block/home) to 400; validation of args happens before proxying.
 - Loop logs its cycle duration every 15th cycle.
+- api container seeds homes on startup (idempotent upsert, real phones from DEMO_PHONE_HOMES env) before starting one uvicorn worker.
+- Dev compose: sim waits for api healthy so the pre-warm history is ingested; env_file .env is optional.
+- Series for a home that never reported returns actual [] and a 25-point predicted curve from its estimate.

@@ -1,11 +1,14 @@
 """Read endpoints and the simulator proxy."""
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, HTTPException
 
 from api import loop
+from api.db import get_pool
+from api.predict import estimate, predict_curve
+from api.queries import SERIES_SQL, fetch_accuracy
 from api.simctl import SPEEDUP, sim_post, sim_state
 from api.state import state
 
@@ -107,3 +110,42 @@ async def sim_action(action: str, arg: str):
         state.add_event("vent_cleared", arg, f"Furnace vent cleared at {arg}", "info")
     await _refresh()
     return res
+
+
+@router.get("/api/events")
+async def events():
+    return list(reversed(state.events))[:20]
+
+
+@router.get("/api/accuracy")
+async def accuracy():
+    pool = await get_pool()
+    return await fetch_accuracy(pool, state.run_id, state.sim_now)
+
+
+@router.get("/api/homes/{home_id}/series")
+async def series(home_id: str):
+    pool = await get_pool()
+    if home_id not in {h["id"] for h in await loop._static_homes(pool)}:
+        raise HTTPException(404, f"unknown home {home_id}")
+    run_id, sim_now = state.run_id, state.sim_now
+    if not run_id or not sim_now:
+        return {"actual": [], "predicted": []}
+    rows = await pool.fetch(SERIES_SQL, run_id, home_id, sim_now)
+    actual = [{"t": r["time"], "temp_f": round(r["temp_f"], 2), "est": False} for r in rows]
+    cur = next((h for h in state.homes_cache if h["id"] == home_id), None)
+    if cur is None:
+        return {"actual": actual, "predicted": []}
+    out = float((state.sim_state or {}).get("outdoor_f", OUTDOOR_F))
+    k = cur["k_est"] if cur["k_est"] is not None else loop.DEFAULT_K
+    if not cur["online"] and not cur["heating"] and rows:
+        last_t, last_temp = rows[-1]["time"], rows[-1]["temp_f"]
+        t = last_t + timedelta(minutes=15)
+        while t <= sim_now:
+            hrs = (t - last_t).total_seconds() / 3600
+            temp = estimate(last_temp, out, k, hrs) if k > 0 else last_temp
+            actual.append({"t": t, "temp_f": round(temp, 2), "est": True})
+            t += timedelta(minutes=15)
+    predicted = [{"t": sim_now + timedelta(minutes=m), "temp_f": round(temp, 2), "est": False}
+                 for m, temp in predict_curve(cur["temp_f"], out, k, cur["heating"])]
+    return {"actual": actual, "predicted": predicted}

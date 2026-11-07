@@ -24,6 +24,7 @@ LIVE_FALLBACK = os.getenv("LIVE_FALLBACK", "scripted")
 LIVE_HOMES = {h.strip() for h in os.getenv("LIVE_HOMES", "H-13").split(",") if h.strip()}
 
 _current: dict | None = None
+last_extracted: dict[str, dict] = {}     # home_id -> {"run_id", "source", "extracted"}
 _active: set[str] = set()
 _live_waiters: dict[str, asyncio.Future] = {}
 _tasks: set[asyncio.Task] = set()
@@ -111,6 +112,7 @@ async def _finish(home: dict, run_id: str, source: str, lines: list[str], starte
     if _stale(run_id):
         return
     outcome = map_outcome(extracted)
+    last_extracted[hid] = {"run_id": run_id, "source": source, "extracted": extracted}
     _set(hid, "done", outcome)
     v["extracted"] = ui_extracted(extracted)
     v["phase"] = "done"

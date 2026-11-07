@@ -1,0 +1,21 @@
+services:
+  api:
+    build: ../api
+    env_file: ../.env
+    expose: ["8000"]
+  sim:
+    build: ../sim
+    env_file: ../.env
+    expose: ["8001"]
+  caddy:
+    image: caddy:2
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ../web/dist:/srv/web
+      - caddy_data:/data
+    depends_on: [api]
+volumes:
+  caddy_data:

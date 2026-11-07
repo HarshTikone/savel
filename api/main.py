@@ -1,4 +1,5 @@
 """SAVEL API. Run with ONE worker: uvicorn api.main:app --port 8000 (never --workers)."""
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -7,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from api import db, ingest
+from api import calls, db, ingest, loop, routes
 from api.state import state
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s api %(levelname)s %(message)s")
@@ -20,7 +21,10 @@ async def lifespan(_: FastAPI):
         await db.get_pool()
     except Exception as e:  # keep serving; /api/health reports 503 until the DB is back
         log.warning("database not reachable at startup: %s", e)
+    task = asyncio.create_task(loop.run_loop()) if os.getenv("LOOP_ENABLED", "1") == "1" else None
     yield
+    if task:
+        task.cancel()
     await db.close_pool()
 
 
@@ -31,6 +35,8 @@ app.add_middleware(
     allow_methods=["*"], allow_headers=["*"],
 )
 app.include_router(ingest.router)
+app.include_router(routes.router)
+app.include_router(calls.router)
 
 
 @app.get("/api/health")

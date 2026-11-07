@@ -7,7 +7,7 @@
 - [x] Part 3 - db pool, models, state, ingest, seed, health
 - [x] Part 4 - prediction math and tests
 - [x] Part 5 - sql queries with fixture tests
-- [ ] Part 6 - risk loop, call trigger, stubs, sim proxy, homes and state api
+- [x] Part 6 - risk loop, call trigger, stubs, sim proxy, homes and state api
 - [ ] Part 7 - series, events, accuracy, reset isolation, offline estimates, dev compose
 - [ ] Part 8 - production compose and caddyfile
 - [ ] Part 9 - readme, samples, resilience, rehearsal
@@ -81,6 +81,24 @@ $ pytest -q api/tests
 16 passed in 0.33s
 ```
 
+### Part 6
+```
+$ pytest -q api/tests
+21 passed in 0.41s
+$ bash scripts/smoke.sh
+PASS after 2s: Block B at risk [H-16:critical,H-13:critical,H-14:critical,H-12:critical,H-17:warning,H-20:warning,H-18:warning]; rows_ingested 1368 -> 1444
+SMOKE_OK
+$ curl /api/state
+{"run_id":"r-20261107T215944","sim_now":"2026-11-08T02:10:00+00:00","outdoor_f":5.0,"speed":300,"live_call":false,"blocks":[A on, B off, C on, D on]}
+$ curl /api/homes  (len, top id, status, risk, hours_to_50)
+40 H-16 critical 100 0.96
+  H-13 B critical 55.66 online k=0.1375 learned h60=0.0 h50=0.86 risk 95 call done
+  H-17 B warning 60.66 OFFLINE k=0.0875 median (never reported: no battery) risk 85
+$ POST /api/sim/block_vent/H-27; sleep 12
+[('H-27', 'critical', 60.0 ppm, heating True)]
+$ POST /api/sim/foo/1 -> 400 {"detail":"unknown action foo"}
+```
+
 ## Decisions made during build
 - PRD v4 transcribed from the PDF into docs/backend-prd.md (code, schema, SQL verbatim).
 - Local Python is 3.14 (no asyncpg 0.30.0 wheel); dev venv uses Python 3.12 via `uv venv -p 3.12`. Dockerfiles use python:3.12-slim.
@@ -100,3 +118,9 @@ $ pytest -q api/tests
 - predict_curve heated branch: T(h) = 68 + (T_now - 68)·e^(-1.5h), same model as the simulator.
 - K_FIT_SQL: the only edit to the PRD SQL is `$2::timestamptz` (asyncpg otherwise infers `$2 - interval` as interval and fails). ACCURACY_SQL is verbatim.
 - queries.py also holds the small async fetch helpers (fetch_k_fit, fetch_latest, fetch_accuracy) so all SQL stays in one module.
+- Homes with no reading at all in the current run (battery-less homes whose block was dark since the run began, e.g. H-17/H-20 after pre-warm) are listed offline with temp estimated from 68°F at the run's start, so all 40 homes appear and silence raises concern.
+- k_est/k_source are None until any home has a fit (PRD model); the countdown math then uses k=0.10 internally.
+- Forecasts are logged only for online, unheated homes with their own positive learned fit (so learned vs global differ).
+- Power events come from both the proxy (immediate) and the loop's block-state diff (catches pre-warm and direct sim changes); the proxy updates prev_power so they never double-log.
+- The sim proxy maps simulator 4xx (unknown block/home) to 400; validation of args happens before proxying.
+- Loop logs its cycle duration every 15th cycle.

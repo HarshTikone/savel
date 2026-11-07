@@ -24,6 +24,7 @@ class State:
         self.last_pred_bucket: int | None = None
         self.prev_power: dict[str, bool] = {}     # block -> power_on, for power events
         self.sim_state: dict | None = None        # cached simulator /state
+        self.run_started: datetime | None = None  # simulated time of the run's first data
 
     def reset(self, run_id: str, at: datetime | None = None) -> None:
         """Start a new run: clear everything except rows_ingested. Idempotent per run_id."""
@@ -33,6 +34,7 @@ class State:
         self._clear_run()
         self.sim_state = sim_state  # keep last known sim blocks/speed until refreshed
         self.run_id = run_id
+        self.run_started = at
         self.add_event("reset", None, f"New run {run_id}", "info", t=at)
 
     def add_event(self, type_: str, home_id: str | None, text: str, severity: str,

@@ -281,3 +281,7 @@ details summary { cursor: pointer; color: var(--muted); font-size: 12px; }
 .ring-info > span:last-child { display: flex; flex-direction: column; }
 .ring-left { font-size: 12px; color: var(--accent); font-weight: 700; }
 .btn-answer:disabled { opacity: .5; cursor: not-allowed; }
+
+.story-step.failed .story-dot { background: var(--status-critical); border-color: var(--status-critical); color: #fff; }
+.story-step.failed .story-label { color: #fca5a5; }
+.story:not(.vertical) .story-step.failed:not(:last-child)::after, .story.vertical .story-step.failed:not(:last-child)::after { background: var(--status-critical); }

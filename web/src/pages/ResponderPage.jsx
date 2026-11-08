@@ -122,7 +122,7 @@ export default function ResponderPage({ data, voice, calls = [], homesById = {},
           <ActivityFeed events={events} onSelect={setPicked} />
         </section>
         <section className="card" aria-label="House details">
-          <HouseCard home={home} rank={rank} onHelp={onHelp} helpPending={home ? !!helpPending[home.id] : false}>
+          <HouseCard home={home} rank={rank} onHelp={onHelp} helpPending={home ? !!helpPending[home.id] : false} incidentOver={steps.cleared}>
             <div className="house-section">
               <h3>AI check-in call</h3>
               <CallPanel call={callForHome} events={(events || []).filter((e) => !home || e.home_id === home.id)} voice={voice} />

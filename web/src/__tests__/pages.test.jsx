@@ -124,23 +124,26 @@ describe('AI agent page', () => {
   })
 })
 
-import { renderHook } from '@testing-library/react'
-import { useStory } from '../hooks/useStory'
+import { useStory, _resetStoriesForTests } from '../hooks/useStory'
 
 describe('story lifecycle', () => {
-  it('clears after it finishes and starts again on the next incident', () => {
-    vi.useFakeTimers()
+  it('clears 12 s after it finishes, survives remounts, and restarts on the next incident', () => {
+    _resetStoriesForTests()
     const done = { ...base, power_on: true, heating: true, status: 'heated', outcome: 'helped', trend: 'heating', call_status: 'done' }
-    const { result, rerender } = renderHook(({ h }) => useStory(h, null, [], 'r1'), { initialProps: { h: done } })
-    expect(result.current.every((s) => s.state === 'done')).toBe(true)
-    vi.advanceTimersByTime(13000)
-    rerender({ h: { ...done } })
-    expect(result.current.every((s) => s.state === 'todo')).toBe(true)
-    rerender({ h: { ...done } })
-    expect(result.current.every((s) => s.state === 'todo')).toBe(true)      // stays clear
-    rerender({ h: { ...base, power_on: false, heating: false, status: 'cooling', outcome: 'none', call_status: 'none' } })
-    expect(result.current[0].state).toBe('done')                          // new power cut
-    expect(result.current[5].state).toBe('todo')                          // help not pre-ticked
-    vi.useRealTimers()
+    const t0 = 1_000_000
+    expect(useStory(done, null, [], 'r1', t0).every((s) => s.state === 'done')).toBe(true)
+    expect(useStory(done, null, [], 'r1', t0 + 5000).cleared).toBe(false)
+    const cleared = useStory(done, null, [], 'r1', t0 + 13000)
+    expect(cleared.cleared && cleared.every((s) => s.state === 'todo')).toBe(true)
+    expect(useStory(done, null, [], 'r1', t0 + 20000).cleared).toBe(true)          // stays clear (memo outlives the page)
+    const cut = useStory({ ...base, power_on: false, heating: false, status: 'cooling', outcome: 'none', call_status: 'none' }, null, [], 'r1', t0 + 21000)
+    expect(cut[0].state).toBe('done')
+    expect(cut[5].state).toBe('todo')                                              // help not pre-ticked
+  })
+  it('an unanswered call shows red and the story carries on', () => {
+    _resetStoriesForTests()
+    const steps = useStory({ ...base, call_status: 'unreachable', outcome: 'unreachable' }, 1, [], 'r2', 0)
+    expect(steps.find((s) => s.key === 'call').state).toBe('failed')
+    expect(steps.find((s) => s.key === 'ranked').state).toBe('done')
   })
 })

@@ -13,10 +13,10 @@ function Stat({ icon: Icon, label, value, tone }) {
   )
 }
 
-export default function HouseCard({ home, rank, onHelp, helpPending, children }) {
+export default function HouseCard({ home, rank, onHelp, helpPending, incidentOver = false, children }) {
   if (!home) return <div className="empty"><p>Select a house on the map or in the priority list.</p></div>
-  const helped = home.outcome === 'helped'
-  const canHelp = !helped && (['warning', 'critical', 'cooling'].includes(home.status) || ['needs_help', 'medical', 'unreachable'].includes(home.outcome))
+  const helped = home.outcome === 'helped' && !incidentOver   // the banner clears with the timeline
+  const canHelp = home.outcome !== 'helped' && (['warning', 'critical', 'cooling'].includes(home.status) || ['needs_help', 'medical', 'unreachable'].includes(home.outcome))
   const slope = home.slope_f_per_h
   const trendText = home.heating ? (home.status === 'recovering' ? 'Warming up' : 'Heated')
     : home.trend === 'falling' ? (slope != null ? `Falling ${Math.abs(slope).toFixed(1)}°F / h` : 'Falling')
@@ -49,7 +49,7 @@ export default function HouseCard({ home, rank, onHelp, helpPending, children })
       {!helped && home.outcome === 'unreachable' && (
         <div className="alert-banner">The resident did not answer. Treat as urgent and send help.</div>
       )}
-      {helped ? (
+      {incidentOver && home.outcome === 'helped' ? null : helped ? (
         <div className="helped-banner"><Check size={18} strokeWidth={3} /> Help delivered. Power restored{home.status === 'heated' ? ', back to normal.' : ', warming up…'}</div>
       ) : (
         <button type="button" className="btn-help" disabled={!canHelp || helpPending} onClick={() => onHelp(home.id)}>

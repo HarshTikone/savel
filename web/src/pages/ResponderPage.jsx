@@ -12,7 +12,7 @@ import TrendStrip from '../components/TrendStrip'
 import CallsBoard from '../components/CallsBoard'
 import { useSeries } from '../hooks/useSeries'
 import { useStory } from '../hooks/useStory'
-import { rankOf, rankedHomes } from '../lib/story'
+import { rankOf, rankedHomes, withCall } from '../lib/story'
 import { STATUS_COLOR } from '../lib/colors'
 import { STATUS_META } from '../data/contract'
 
@@ -79,7 +79,8 @@ export default function ResponderPage({ data, voice, calls = [], homesById = {},
   const home = homes.find((h) => h.id === selectedId)
   const rank = home ? rankOf(homes, home.id) : null
   // The timeline follows the house on screen.
-  const steps = useStory(home, rank, events, runId)
+  const storyHome = withCall(home, home ? calls.find((c) => c.home_id === home.id) : null)
+  const steps = useStory(storyHome, rank, events, runId)
   const series = useSeries(selectedId, runId)
   const callForHome = home ? calls.find((c) => c.home_id === home.id) || null : null
 
@@ -91,7 +92,7 @@ export default function ResponderPage({ data, voice, calls = [], homesById = {},
           <div className="story-title">Timeline · <span className="strong-id">{home.id}</span>
             {steps.every((s) => s.state === 'todo') && <span className="muted"> · no incident right now</span>}
           </div>
-          <HouseStory steps={steps} home={home} rank={rank} />
+          <HouseStory steps={steps} home={storyHome} rank={rank} />
         </section>
       )}
       <Tiles homes={homes} state={state} />

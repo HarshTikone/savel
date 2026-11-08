@@ -50,7 +50,7 @@ export default function App() {
     <div className="app">
       <TopBar page={page} state={data.state} connection={data.connection} />
       {page === 'sim' ? (
-        <SimulationPage data={data} sim={sim} onHelp={onHelp} helpPending={helpPending} />
+        <SimulationPage data={data} sim={sim} calls={calls} onHelp={onHelp} helpPending={helpPending} />
       ) : page === 'agent' ? (
         <AgentPage data={data} voice={voice} calls={calls} homesById={homesById} />
       ) : (

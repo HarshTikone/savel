@@ -29,6 +29,13 @@ async def calls_live_answered(body: dict):
     return Response(status_code=204)
 
 
+@router.post("/api/calls/live/declined", status_code=204)
+async def calls_live_declined(body: dict):
+    """The presenter declined a ringing live call (the resident did not pick up)."""
+    manager.mark_live_declined(str(body.get("home_id", "")))
+    return Response(status_code=204)
+
+
 @router.post("/api/calls/webhook", status_code=204)
 async def calls_webhook(request: Request):
     raw = await request.body()

@@ -45,11 +45,11 @@ def test_co_dominates():
 def test_outcomes_raise_score():
     h = home(temp_f=56, heating=False, hours_to_50=0)     # 6 + 25: whole numbers, no rounding
     base = risk_score(h, None)
-    assert risk_score(h, {"call_status": "done", "outcome": "needs_help"}) == base + 12
-    assert risk_score(h, {"call_status": "done", "outcome": "medical"}) == base + 15
-    assert risk_score(h, {"call_status": "unreachable", "outcome": "unreachable"}) == base + 15
-    assert risk_score(h, {"call_status": "no_answer", "outcome": "none"}) == base + 8
-    assert risk_score(h, {"call_status": "done", "outcome": "ok"}) == base
+    assert risk_score(h, {"call_status": "done", "outcome": "needs_help"}) == base + 15
+    assert risk_score(h, {"call_status": "done", "outcome": "medical"}) == base + 20
+    assert risk_score(h, {"call_status": "unreachable", "outcome": "unreachable"}) == base + 35
+    assert risk_score(h, {"call_status": "no_answer", "outcome": "none"}) == base + 10
+    assert risk_score(h, {"call_status": "done", "outcome": "ok"}) == base - 15
 
 
 def test_offline_adds_five_and_cap_is_100():
@@ -76,3 +76,14 @@ def test_call_result_reorders_but_temperature_leads():
     mild = home(temp_f=59, heating=False, hours_to_50=3.5)
     assert risk_score(cold, None) > risk_score(mild, {"call_status": "done", "outcome": "needs_help"})
     assert risk_score(mild, {"call_status": "done", "outcome": "needs_help"}) > risk_score(mild, None)
+
+
+def test_unreachable_outranks_answered_needs_help():
+    a = home(temp_f=55, heating=False, hours_to_50=1.5)
+    assert risk_score(a, {"call_status": "unreachable", "outcome": "unreachable"}) > \
+        risk_score(a, {"call_status": "done", "outcome": "medical"})
+
+
+def test_ok_call_stays_listed():
+    a = home(temp_f=59.5, heating=False, hours_to_50=None)
+    assert risk_score(a, {"call_status": "done", "outcome": "ok"}) >= 1

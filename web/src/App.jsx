@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useDashboardData } from './hooks/useDashboardData'
-import { useAutoAnswer } from './hooks/useAutoAnswer'
+import { useVoiceCall } from './hooks/useVoiceCall'
 import { useTrends } from './hooks/useTrends'
 import { useSim } from './hooks/useSim'
 import TopBar from './components/TopBar'
@@ -23,7 +23,7 @@ export default function App() {
   const page = usePage()
   const data = useDashboardData()
   const callHomeRec = data.call ? data.homes.find((h) => h.id === data.call.home_id) : null
-  const voice = useAutoAnswer(data.call, callHomeRec, page === 'responder')
+  const voice = useVoiceCall(data.call, callHomeRec)
   const trends = useTrends(data.runId)
   const sim = useSim(data.refresh)
   const [helpPending, setHelpPending] = useState({})

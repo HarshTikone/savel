@@ -28,7 +28,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s sim %(levelname)s %(
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 INGEST_URL = os.getenv("INGEST_URL", "http://localhost:8000/api/ingest")
-SPEEDUP = int(os.getenv("SPEEDUP", "150"))   # storm seconds per real second (2.5 storm min/s)
+SPEEDUP = int(os.getenv("SPEEDUP", "60"))    # storm seconds per real second (1 storm min/s)
+REPORT_MIN = float(os.getenv("REPORT_EVERY_MIN", "10"))   # each sensor reports every 10 storm minutes
 SEED = int(os.getenv("SEED", "42"))
 PREWARM_BLOCK = os.getenv("PREWARM_BLOCK", "B").upper()
 PREWARM_MINUTES = int(os.getenv("PREWARM_MINUTES", "80"))
@@ -41,13 +42,13 @@ CENTER = (42.9470, -78.8520)
 BLOCK_OFFSETS = {"A": (0.006, -0.008), "B": (0.006, 0.008), "C": (-0.006, -0.008), "D": (-0.006, 0.008)}
 LIVE_START = datetime(2026, 11, 8, 2, 0, 0, tzinfo=timezone.utc)  # 9:00 PM Buffalo
 SETPOINT_F = 68.0
-HEAT_RATE = 1.5           # per hour, approach to setpoint when heating
+HEAT_RATE = 1.0           # per hour, approach to setpoint when heating (furnace warms the house gradually)
 CO_RISE = 60.0            # ppm per storm hour with a blocked vent and a running furnace
 CO_FALL = 120.0           # ppm per storm hour once the vent is clear
 CO_TRIP, CO_UNTRIP, CO_CAP = 70.0, 5.0, 400.0
-NOISE_F = 0.25            # sensor noise, standard deviation in degrees F
-OUTLIER_P = 0.004         # chance a reading is a bad spike
-DROPOUT_P = 0.03          # chance a sensor misses one tick (never two in a row)
+NOISE_F = 0.12            # sensor noise, standard deviation in degrees F
+OUTLIER_P = 0.0          # no fake spikes: they read as flicker on screen
+DROPOUT_P = 0.02          # chance a sensor misses one report (never two in a row)
 LAG_MAX_MIN = 10          # storm minutes of stagger before each home in a block loses heat
 WIND_AMP = 0.12           # wind gusts change how fast every house in the storm loses heat
 PLACEHOLDER_PHONE = "+1-000-000-0000"
@@ -125,6 +126,7 @@ class Sim:
         self.cut_at: dict[str, datetime | None] = {b: None for b in BLOCKS}
         self.skipped: set[str] = set()
         self.house_off: set[str] = set()   # single homes with their own power cut
+        self.last_report = LIVE_START
 
     # -- physics
     def mains(self, hid: str) -> bool:
@@ -239,6 +241,8 @@ class Sim:
             rest = prewarm - steps * 5
             if rest:
                 self.step(rest * 60)
+        self.last_report = self.sim_now
+        await self.post(self.batch())        # first report of the run right away
         log.info("reset run_id=%s prewarm=%s sim_now=%s", rid, prewarm, self.sim_now.isoformat())
         return {"run_id": rid, "sim_now": iso(self.sim_now), "speed": self.speed, "prewarm": prewarm}
 
@@ -247,6 +251,7 @@ class Sim:
             "run_id": self.run_id, "sim_now": iso(self.sim_now), "outdoor_f": self.outdoor_f,
             "speed": self.speed, "blocks": [{"block": b, "power_on": self.power[b]} for b in BLOCKS],
             "houses_off": sorted(self.house_off),
+            "report_every_s": int(REPORT_MIN * 60),
         }
 
     async def tick_forever(self) -> None:
@@ -256,7 +261,9 @@ class Sim:
             try:
                 async with self.lock:
                     self.step(self.speed)
-                    await self.post(self.batch())
+                    if (self.sim_now - self.last_report).total_seconds() >= REPORT_MIN * 60:
+                        self.last_report = self.sim_now
+                        await self.post(self.batch())
             except Exception:  # never let the tick loop die
                 log.exception("tick failed")
             await asyncio.sleep(max(0.0, 1.0 - (loop.time() - started)))

@@ -57,8 +57,8 @@ def _power_events(blocks: list[dict]) -> None:
             state.prev_power[name] = on
 
 
-MEDIAN_N = 5                 # displayed temperature = median of the last 5 readings
-TREND_N = 10                 # trend = robust line through the last 10 readings
+MEDIAN_N = 2                 # displayed temperature = mean of the last 2 reports (reports are 10 storm min apart)
+TREND_N = 8                  # trend = robust line through the last 8 reports
 
 
 async def _fetch_windows(pool, run_id, sim_now, ids):
@@ -96,7 +96,8 @@ async def _compute() -> None:
         return  # a reset landed mid-cycle; the next cycle handles the new run
     positive = [k for k in fits.values() if k > 0]
     global_k = median(positive)
-    offline_after = 3 * speed  # storm seconds: 3 missed ticks
+    report_s = int(sim.get("report_every_s") or speed)
+    offline_after = 3 * max(speed, report_s)  # storm seconds: 3 missed sensor reports
 
     results, preds = [], []
     for h in homes:

@@ -65,3 +65,25 @@ describe('pages', () => {
     expect(sim.reset).toHaveBeenCalledWith(0)
   })
 })
+
+import { IncomingCall } from '../components/CallPanel'
+
+describe('incoming call', () => {
+  const ringing = { home_id: 'H-13', source: 'live', phase: 'ringing', transcript: [] }
+  it('shows Answer and Decline while ringing', () => {
+    const voice = { status: 'idle', ended: false, error: '', answer: vi.fn(), decline: vi.fn(), hangUp: vi.fn(), liveLines: [] }
+    render(<IncomingCall call={ringing} voice={voice} />)
+    fireEvent.click(screen.getByText('Answer'))
+    fireEvent.click(screen.getByText('Decline'))
+    expect(voice.answer).toHaveBeenCalled()
+    expect(voice.decline).toHaveBeenCalled()
+  })
+  it('shows Hang up during the call and nothing for scripted calls', () => {
+    const voice = { status: 'talking', ended: false, error: '', answer: vi.fn(), decline: vi.fn(), hangUp: vi.fn(), liveLines: [] }
+    const { rerender } = render(<IncomingCall call={{ ...ringing, phase: 'in_call' }} voice={voice} />)
+    fireEvent.click(screen.getByText('Hang up'))
+    expect(voice.hangUp).toHaveBeenCalled()
+    rerender(<IncomingCall call={{ ...ringing, source: 'scripted' }} voice={voice} />)
+    expect(screen.queryByText('Hang up')).toBeNull()
+  })
+})

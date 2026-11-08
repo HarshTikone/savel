@@ -53,17 +53,19 @@ def risk_score(home: dict, call: dict | None) -> int:
     needs = {n for n in (home.get("medical_needs") or []) if n}
     score += min(MEDICAL_CAP, sum(MEDICAL_POINTS.get(n, 0) for n in needs))
 
-    # What the check-in call found: reorders homes already in danger.
+    # What the check-in call found (Gemini's reading of the transcript): reorders homes in danger.
     if outcome == "needs_help":
-        score += 12
+        score += 15
     elif outcome == "medical":
-        score += 15
+        score += 20
+    elif outcome == "ok":
+        score -= 15                             # resident says they are fine for now
     if outcome == "unreachable" or call_status == "unreachable":
-        score += 15
+        score += 35                             # nobody answered: assume the worst, send help
     elif call_status == "no_answer":
-        score += 8
+        score += 10
 
     if not home.get("online", True):
         score += 5
 
-    return int(min(CAP, round(score)))
+    return int(max(1, min(CAP, round(score))))   # in danger: always listed, even after an "ok" call

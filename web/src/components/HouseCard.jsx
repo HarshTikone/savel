@@ -46,6 +46,9 @@ export default function HouseCard({ home, rank, onHelp, helpPending, children })
         <span><HeartPulse size={13} /> {home.medical_needs && home.medical_needs.length ? home.medical_needs.join(', ') : 'No medical needs'}</span>
         <span><Languages size={13} /> {LANG[home.language] || home.language}</span>
       </div>
+      {!helped && home.outcome === 'unreachable' && (
+        <div className="alert-banner">The resident did not answer. Treat as urgent and send help.</div>
+      )}
       {helped ? (
         <div className="helped-banner"><Check size={18} strokeWidth={3} /> Help delivered. Power restored{home.status === 'heated' ? ', back to normal.' : ', warming up…'}</div>
       ) : (

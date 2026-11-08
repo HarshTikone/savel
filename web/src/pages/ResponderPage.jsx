@@ -12,7 +12,7 @@ import TrendStrip from '../components/TrendStrip'
 import CallsBoard from '../components/CallsBoard'
 import { useSeries } from '../hooks/useSeries'
 import { useStory } from '../hooks/useStory'
-import { rankOf, rankedHomes, withCall } from '../lib/story'
+import { rankOf, rankedHomes, withCall, callSettled } from '../lib/story'
 import { STATUS_COLOR } from '../lib/colors'
 import { STATUS_META } from '../data/contract'
 
@@ -82,7 +82,9 @@ export default function ResponderPage({ data, voice, calls = [], homesById = {},
   const storyHome = withCall(home, home ? calls.find((c) => c.home_id === home.id) : null)
   const steps = useStory(storyHome, rank, events, runId)
   const series = useSeries(selectedId, runId)
-  const callForHome = home ? calls.find((c) => c.home_id === home.id) || null : null
+  // Once the house is helped and back to normal (same moment the timeline resets), its call clears too.
+  const settled = home ? callSettled(home, runId) : false
+  const callForHome = home && !settled ? calls.find((c) => c.home_id === home.id) || null : null
 
   return (
     <div className="page responder">
@@ -95,7 +97,7 @@ export default function ResponderPage({ data, voice, calls = [], homesById = {},
         </section>
       )}
       <Tiles homes={homes} state={state} />
-      <CallsBoard calls={calls} selectedId={selectedId} onSelect={setPicked} />
+      <CallsBoard calls={calls} homes={homes} runId={runId} selectedId={selectedId} onSelect={setPicked} />
       <TrendStrip trends={trends} selectedId={selectedId} />
       <div className="r-grid">
         <section className="card" aria-label="Priority list">
@@ -125,7 +127,7 @@ export default function ResponderPage({ data, voice, calls = [], homesById = {},
           <HouseCard home={home} rank={rank} onHelp={onHelp} helpPending={home ? !!helpPending[home.id] : false} incidentOver={steps.cleared}>
             <div className="house-section">
               <h3>AI check-in call</h3>
-              <CallPanel call={callForHome} events={(events || []).filter((e) => !home || e.home_id === home.id)} voice={voice} />
+              <CallPanel call={callForHome} events={settled ? [] : (events || []).filter((e) => !home || e.home_id === home.id)} voice={voice} />
             </div>
             <div className="house-section">
               <h3>Temperature</h3>

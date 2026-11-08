@@ -97,3 +97,16 @@ export function stepDetail(key, home, rank) {
     default: return ''
   }
 }
+
+// A call card leaves the check-in board once its house was helped and has been back to normal
+// for as long as the timeline stays green (then the timeline resets too). Kept outside React.
+const SETTLE_MS = 12000
+const settledSince = new Map()   // `${runId}|${homeId}` -> first time seen helped + heated
+export function callSettled(home, runId, now = Date.now()) {
+  if (!home) return false
+  const key = `${runId}|${home.id}`
+  if (home.outcome !== 'helped' || home.status !== 'heated') { settledSince.delete(key); return false }
+  if (!settledSince.has(key)) settledSince.set(key, now)
+  return now - settledSince.get(key) > SETTLE_MS
+}
+export function _resetSettledForTests() { settledSince.clear() }

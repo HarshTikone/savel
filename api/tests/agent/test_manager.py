@@ -252,3 +252,14 @@ async def test_stale_flow_from_previous_run_does_not_block_new_run(setup, monkey
     await m.handle_live_transcript("H-13", ["SAVEL: hi", "Resident: no heat, need help"])
     await settle("H-13")
     assert state.calls["H-13"]["outcome"] == "needs_help" and m.current_view()["source"] == "live"
+
+
+async def test_calls_board_lists_every_call(setup):
+    state.homes_cache = [mk("H-02"), mk("H-03")]
+    await m.trigger_call("H-02", "warning")
+    await m.trigger_call("H-03", "warning")
+    await settle("H-02")
+    await settle("H-03")
+    board = m.all_views()
+    assert {b["home_id"] for b in board} >= {"H-02", "H-03"}
+    assert all(b["phase"] in ("done", "no_answer") for b in board if b["home_id"] in ("H-02", "H-03"))

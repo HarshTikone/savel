@@ -87,3 +87,20 @@ describe('incoming call', () => {
     expect(screen.queryByText('Hang up')).toBeNull()
   })
 })
+
+import CallsBoard from '../components/CallsBoard'
+
+describe('calls board', () => {
+  it('shows one card per called house', () => {
+    const onSelect = vi.fn()
+    render(<CallsBoard selectedId={null} onSelect={onSelect} calls={[
+      { home_id: 'H-13', phase: 'ringing', source: 'live', outcome: 'none' },
+      { home_id: 'H-14', phase: 'done', source: 'scripted', outcome: 'medical' },
+      { home_id: 'H-16', phase: 'no_answer', source: 'scripted', outcome: 'unreachable' },
+    ]} />)
+    expect(screen.getByText('1 in progress · 3 houses called')).toBeInTheDocument()
+    expect(screen.getByText('Medical')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('H-16'))
+    expect(onSelect).toHaveBeenCalledWith('H-16')
+  })
+})

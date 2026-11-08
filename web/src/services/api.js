@@ -69,3 +69,5 @@ export const getTrends = () => (isMock() ? Promise.resolve({ window: 15, blocks:
 
 export const helpHome = (id) =>
   isMock() ? mock({ home_id: id, outcome: 'helped' }) : request(`/api/homes/${encodeURIComponent(id)}/help`, { method: 'POST' })
+
+export const getCalls = () => (isMock() ? Promise.resolve([]) : request('/api/calls'))

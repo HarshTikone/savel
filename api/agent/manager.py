@@ -25,6 +25,7 @@ LIVE_FALLBACK = os.getenv("LIVE_FALLBACK", "none")   # "none": an unanswered liv
 LIVE_HOMES = {h.strip() for h in os.getenv("LIVE_HOMES", "H-13").split(",") if h.strip()}
 
 _current: dict | None = None
+_views: dict[str, dict] = {}             # home_id -> latest call view (for the calls board)
 last_extracted: dict[str, dict] = {}     # home_id -> {"run_id", "source", "extracted"}
 _active: dict[str, str] = {}              # home_id -> run_id of the flow in progress
 _flows: dict[str, "asyncio.Task"] = {}
@@ -77,6 +78,7 @@ def _start_view(home: dict, run_id: str, source: str, phase: str) -> dict:
                  and _current["phase"] in ("ringing", "in_call", "extracting"))
     if not (source == "scripted" and live_busy):
         _current = view
+    _views[home["id"]] = view
     return view
 
 
@@ -84,6 +86,21 @@ def current_view() -> dict | None:
     if not _current or _stale(_current["run_id"]):
         return None
     return {k: v for k, v in _current.items() if k != "run_id"}
+
+
+def all_views() -> list[dict]:
+    """Every call in this run, active ones first, for the calls board."""
+    order = {"ringing": 0, "in_call": 0, "extracting": 0, "done": 1, "no_answer": 1}
+    out = []
+    for hid, v in _views.items():
+        if _stale(v["run_id"]):
+            continue
+        c = state.calls.get(hid, {})
+        out.append({"home_id": hid, "phase": v["phase"], "source": v["source"],
+                    "last": v["transcript"][-1] if v["transcript"] else "",
+                    "call_status": c.get("call_status", "none"), "outcome": c.get("outcome", "none")})
+    out.sort(key=lambda x: (order.get(x["phase"], 2), x["home_id"]))
+    return out
 
 
 def ui_extracted(e: dict | None) -> dict | None:

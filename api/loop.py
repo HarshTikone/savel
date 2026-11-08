@@ -57,6 +57,7 @@ def _power_events(blocks: list[dict]) -> None:
             state.prev_power[name] = on
 
 
+RECHECK_DROP_F = float(os.getenv("RECHECK_DROP_F", "8"))   # degrees of further cooling before a re-check call
 MEDIAN_N = 2                 # displayed temperature = mean of the last 2 reports (reports are 10 storm min apart)
 TREND_N = 8                  # trend = robust line through the last 8 reports
 
@@ -179,6 +180,19 @@ async def _compute() -> None:
             _spawn(trigger_call(hid, reason=st))
         if heating and co < 35:
             state.episodes.discard(hid)
+            state.ok_baseline.pop(hid, None)
+
+        # Resident said they were fine, but the house keeps cooling: call again after a further
+        # RECHECK_DROP_F, or as soon as it crosses 50F.
+        if outcome == "ok" and call_status == "done" and not heating:
+            base = state.ok_baseline.setdefault(hid, temp)
+            if temp <= base - RECHECK_DROP_F or (base >= 50 > temp):
+                state.ok_baseline.pop(hid, None)
+                state.add_event("threshold", hid,
+                                f"{hid} still cooling ({temp:.0f}F) after an OK call: calling again", st)
+                _spawn(trigger_call(hid, reason="recheck"))
+        elif outcome != "ok":
+            state.ok_baseline.pop(hid, None)
 
         # Forecasts to score later: cooling, unheated, online homes with their own fit.
         if last is not None and online and not heating and k_source == "learned" and fitted > 0 and global_k:

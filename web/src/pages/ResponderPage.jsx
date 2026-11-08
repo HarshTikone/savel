@@ -9,6 +9,8 @@ import CallPanel, { IncomingCall } from '../components/CallPanel'
 import TemperatureChart from '../components/TemperatureChart'
 import ActivityFeed from '../components/ActivityFeed'
 import TrendStrip from '../components/TrendStrip'
+import CallsBoard from '../components/CallsBoard'
+import { useCalls } from '../hooks/useCalls'
 import { useSeries } from '../hooks/useSeries'
 import { useStory } from '../hooks/useStory'
 import { rankOf, rankedHomes } from '../lib/story'
@@ -81,6 +83,7 @@ export default function ResponderPage({ data, voice, trends, onHelp, helpPending
   const focusRank = focusHome ? rankOf(homes, focusId) : null
   const steps = useStory(focusHome, focusRank, events, runId)
   const series = useSeries(selectedId, runId)
+  const calls = useCalls(runId)
   const callForHome = call && home && call.home_id === home.id ? call : null
 
   return (
@@ -93,6 +96,7 @@ export default function ResponderPage({ data, voice, trends, onHelp, helpPending
         </section>
       )}
       <Tiles homes={homes} state={state} />
+      <CallsBoard calls={calls} selectedId={selectedId} onSelect={setPicked} />
       <TrendStrip trends={trends} selectedId={selectedId} />
       <div className="r-grid">
         <section className="card" aria-label="Priority list">

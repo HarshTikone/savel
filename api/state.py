@@ -26,6 +26,7 @@ class State:
         self.sim_state: dict | None = None        # cached simulator /state
         self.run_started: datetime | None = None  # simulated time of the run's first data
         self.focus_home: str | None = None        # the single home the presenter cut (demo story)
+        self.ok_baseline: dict[str, float] = {}   # home -> temperature when the resident said "fine"
 
     def reset(self, run_id: str, at: datetime | None = None) -> None:
         """Start a new run: clear everything except rows_ingested. Idempotent per run_id."""

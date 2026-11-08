@@ -25,6 +25,7 @@ class State:
         self.prev_power: dict[str, bool] = {}     # block -> power_on, for power events
         self.sim_state: dict | None = None        # cached simulator /state
         self.run_started: datetime | None = None  # simulated time of the run's first data
+        self.focus_home: str | None = None        # the single home the presenter cut (demo story)
 
     def reset(self, run_id: str, at: datetime | None = None) -> None:
         """Start a new run: clear everything except rows_ingested. Idempotent per run_id."""

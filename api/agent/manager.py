@@ -169,6 +169,24 @@ async def _scripted_attempt(home: dict, run_id: str, attempt: int, started) -> b
     return True
 
 
+def set_live_home(home_id: str) -> None:
+    """The presenter cut one house: that house gets the live browser call."""
+    LIVE_HOMES.clear()
+    LIVE_HOMES.add(home_id)
+
+
+def resolve(home_id: str) -> None:
+    """Help delivered: stop any call flow for the home and record the outcome."""
+    fut = _live_waiters.pop(home_id, None)
+    if fut and not fut.done():
+        fut.cancel()
+    flow = _flows.pop(home_id, None)
+    if flow and not flow.done():
+        flow.cancel()
+    _active.pop(home_id, None)
+    _set(home_id, "done", "helped")
+
+
 def mark_live_answered(home_id: str) -> bool:
     """The dashboard connected the voice agent for a ringing live call: stop the ring timeout."""
     if home_id not in _live_waiters:

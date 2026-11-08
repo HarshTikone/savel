@@ -66,3 +66,6 @@ export const simReset = ({ prewarm } = {}) => {
 }
 
 export const getTrends = () => (isMock() ? Promise.resolve({ window: 15, blocks: [], homes: {} }) : request('/api/trends'))
+
+export const helpHome = (id) =>
+  isMock() ? mock({ home_id: id, outcome: 'helped' }) : request(`/api/homes/${encodeURIComponent(id)}/help`, { method: 'POST' })

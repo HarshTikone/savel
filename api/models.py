@@ -4,9 +4,9 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-Status = Literal["heated", "cooling", "warning", "critical", "leaving"]
+Status = Literal["heated", "cooling", "warning", "critical", "leaving", "recovering"]
 CallStatus = Literal["none", "queued", "ringing", "in_call", "done", "no_answer", "unreachable"]
-Outcome = Literal["none", "ok", "needs_help", "medical", "leaving", "unreachable"]
+Outcome = Literal["none", "ok", "needs_help", "medical", "leaving", "unreachable", "helped"]
 Phase = Literal["ringing", "in_call", "extracting", "done", "no_answer"]
 Severity = Literal["info", "warning", "critical"]
 
@@ -73,7 +73,8 @@ class Series(BaseModel):             # GET /api/homes/{id}/series
 class Event(BaseModel):              # GET /api/events item, newest first
     t: datetime
     type: Literal["power_cut", "power_restored", "vent_blocked", "vent_cleared",
-                  "threshold", "call_started", "call_result", "reset"]
+                  "threshold", "call_started", "call_result", "reset",
+                  "house_power_cut", "house_power_restored", "help_delivered"]
     home_id: str | None
     text: str
     severity: Severity

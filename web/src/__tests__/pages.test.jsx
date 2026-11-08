@@ -150,6 +150,22 @@ describe('story lifecycle', () => {
     expect(cut[0].state).toBe('done')
     expect(cut[5].state).toBe('todo')                                              // help not pre-ticked
   })
+  it('answered "leaving": the story ends at the call and clears 12 s later, and stays clear', () => {
+    _resetStoriesForTests()
+    const cold = { ...base, power_on: false, heating: false, trend: 'falling', status: 'warning' }
+    useStory({ ...cold, call_status: 'in_call' }, 1, [], 'r9', 0)
+    const left = { ...cold, temp_f: 33, status: 'leaving', call_status: 'done', outcome: 'leaving', call_result: 'leaving' }
+    const steps = useStory(left, null, [], 'r9', 1000)
+    expect(steps.find((s) => s.key === 'call').state).toBe('done')
+    expect(steps.find((s) => s.key === 'help').state).toBe('skipped')
+    expect(steps.find((s) => s.key === 'normal').state).toBe('skipped')
+    expect(useStory(left, null, [], 'r9', 8000).cleared).toBe(false)
+    expect(useStory(left, null, [], 'r9', 14000).cleared).toBe(true)
+    expect(useStory(left, null, [], 'r9', 30000).cleared).toBe(true)                // empty house keeps cooling: still clear
+    useStory({ ...left, power_on: true }, null, [], 'r9', 31000)
+    const again = useStory({ ...cold, call_status: 'none', outcome: 'none', call_result: null }, null, [], 'r9', 32000)
+    expect(again.cleared).toBe(false)                                               // next power cut starts a new story
+  })
   it('a call that was not answered stays red after help is delivered', () => {
     _resetStoriesForTests()
     const steps = useStory({ ...base, power_on: true, heating: true, status: 'recovering', call_status: 'done', outcome: 'helped', call_result: 'unreachable' }, null, [], 'r3', 0)
@@ -213,6 +229,14 @@ describe('check-in board clears settled houses', () => {
     expect(callSettled(done, 'r9', 13000)).toBe(true)
     expect(callSettled({ ...done, status: 'recovering' }, 'r9', 14000)).toBe(false)   // still warming: stays
     expect(callSettled({ ...base, id: 'H-08', outcome: 'unreachable' }, 'r9', 20000)).toBe(false)
+  })
+  it('a house whose resident is leaving also leaves the board after 12 s', () => {
+    _resetSettledForTests()
+    const h = { ...base, id: 'H-15', power_on: false, call_status: 'in_call', status: 'warning' }
+    expect(callSettled(h, 'r9', -1000)).toBe(false)
+    const left = { ...h, status: 'leaving', outcome: 'leaving', call_status: 'done', call_result: 'leaving' }
+    expect(callSettled(left, 'r9', 0)).toBe(false)
+    expect(callSettled(left, 'r9', 13000)).toBe(true)
   })
   it('the board hides settled cards and keeps the rest', () => {
     _resetSettledForTests()

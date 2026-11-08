@@ -10,7 +10,7 @@ export default function HouseStory({ steps, home, rank, vertical = false }) {
           <span className="story-dot">{s.state === 'done' ? <Check size={14} strokeWidth={3} /> : s.state === 'failed' ? <X size={14} strokeWidth={3} /> : s.state === 'skipped' ? <Minus size={14} strokeWidth={3} /> : i + 1}</span>
           <span className="story-text">
             <span className="story-label">{s.label}</span>
-            <span className="story-detail">{steps.cleared ? '' : s.state === 'skipped' ? 'No call result' : (s.state === 'current' && s.key !== 'call') || s.state === 'todo' ? '' : stepDetail(s.key, home, rank)}</span>
+            <span className="story-detail">{steps.cleared ? '' : s.state === 'skipped' ? (s.key === 'call' ? 'No call result' : 'Not needed') : (s.state === 'current' && s.key !== 'call') || s.state === 'todo' ? '' : stepDetail(s.key, home, rank)}</span>
           </span>
         </li>
       ))}

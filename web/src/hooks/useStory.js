@@ -1,4 +1,4 @@
-import { STORY_STEPS, reachedNow, callInProgress } from '../lib/story'
+import { STORY_STEPS, reachedNow, callInProgress, isLeaving } from '../lib/story'
 
 const SHOW_DONE_MS = 12000   // a finished story stays green this long, then clears for the next incident
 
@@ -32,7 +32,7 @@ export function useStory(home, rank, events, runId, now = Date.now()) {
   let m = memos.get(key)
   if (!m) {
     // First look at this house (e.g. after a reload): an incident that already ended starts cleared.
-    const finished = !liveSignals(home) && home.status === 'heated'
+    const finished = (!liveSignals(home) && home.status === 'heated') || (isLeaving(home) && !callInProgress(home))
     m = { max: -1, seen: new Set(), power: null, doneAt: null, cleared: finished }
     memos.set(key, m)
   }
@@ -41,7 +41,8 @@ export function useStory(home, rank, events, runId, now = Date.now()) {
   m.power = power
 
   if (m.cleared) {
-    if (!liveSignals(home)) return todo()
+    // A household that left stays cleared (its empty house keeps cooling) until the next power cut.
+    if (!liveSignals(home) || isLeaving(home)) return todo()
     Object.assign(m, { cleared: false, max: -1, seen: new Set(), doneAt: null })
   }
   const reached = reachedNow(home, rank, events)
@@ -52,7 +53,10 @@ export function useStory(home, rank, events, runId, now = Date.now()) {
     }
   })
   const last = STORY_STEPS.length - 1
-  if (m.max === last) {
+  const callIdx = STORY_STEPS.findIndex((s) => s.key === 'call')
+  // Answered "leaving" ends the story at the call: help and back-to-normal are not needed.
+  const left = isLeaving(home) && m.seen.has('call') && !callInProgress(home)
+  if (m.max === last || left) {
     if (m.doneAt === null) m.doneAt = now
     else if (now - m.doneAt > SHOW_DONE_MS) {
       Object.assign(m, { cleared: true, max: -1, seen: new Set(), doneAt: null })
@@ -67,6 +71,8 @@ export function useStory(home, rank, events, runId, now = Date.now()) {
       else if (state === 'done' && !m.seen.has('call')) state = 'skipped'      // help came before any call result
       else if (state !== 'done' && callInProgress(home)) state = 'current'
     }
+    if (left && i > callIdx && state !== 'done') state = 'skipped'
+    if (left && i <= callIdx && state !== 'failed') state = state === 'skipped' ? 'skipped' : 'done'
     return { ...s, state }
   })
   steps.cleared = false

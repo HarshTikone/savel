@@ -145,7 +145,7 @@ async def _compute() -> None:
                     temp = estimate(temp, out, k_calc, silent_s / 3600)
 
         slope = trend.get("slope_f_per_h")
-        power_now = has_power(hid, h["block"])   # simulator truth, no report lag
+        power_now = has_power(hid, h["block"]) if block_power else power_on   # simulator truth, no report lag
         declining = (not heating) and (trend.get("label") in ("declining", "slowing", "falling", "insufficient")
                                        or (slope is not None and slope <= -1.0)
                                        or (not power_now and slope is not None and slope < 0))
@@ -171,7 +171,7 @@ async def _compute() -> None:
             st = "recovering"     # power is back; the next sensor report will show the furnace running
         home = {
             "id": hid, "block": h["block"], "lat": h["lat"], "lon": h["lon"],
-            "temp_f": round(temp, 2), "co_ppm": round(co, 2), "power_on": power_on, "heating": heating,
+            "temp_f": round(temp, 2), "co_ppm": round(co, 2), "power_on": power_now, "heating": heating,
             "online": online, "k_est": None if k_est is None else round(k_est, 4), "k_source": k_source,
             "hours_to_60": None if h60 is None else round(h60, 2),
             "hours_to_50": None if h50 is None else round(h50, 2),
@@ -193,8 +193,8 @@ async def _compute() -> None:
             state.episodes.add(hid)
             state.add_event("threshold", hid, f"{hid} reached {st}", st)
             _spawn(trigger_call(hid, reason=st))
-        if heating and co < 35 and power_now and call_status == "ringing":
-            cancel_ringing(hid)          # heat came back on its own before anyone answered
+        if power_now and co < 35 and call_status == "ringing" and outcome == "none":
+            cancel_ringing(hid)          # power came back on its own before anyone answered (simulator truth, no report lag)
         if heating and co < 35:
             state.episodes.discard(hid)
             state.ok_baseline.pop(hid, None)

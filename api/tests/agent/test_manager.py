@@ -365,3 +365,12 @@ async def test_answered_call_is_not_cancelled(setup, monkeypatch):
     m.mark_live_answered("H-25")
     assert not m.cancel_ringing("H-25")
     m.resolve("H-25")
+
+
+async def test_homes_list_overlays_live_call_state():
+    from api import routes
+    state.homes_cache = [{**mk("H-40"), "call_status": "none", "outcome": "none", "risk": 30, "status": "warning",
+                          "temp_f": 55.0, "co_ppm": 0.0, "heating": False, "hours_to_50": 2.0, "online": True}]
+    state.calls["H-40"] = {"call_status": "unreachable", "outcome": "unreachable"}
+    h = (await routes.homes())[0]
+    assert h["call_status"] == "unreachable" and h["risk"] > 30

@@ -187,3 +187,12 @@ describe('priority ties', () => {
     expect(list.map((h) => h.id)).toEqual(['H-10', 'H-01', 'H-17'])
   })
 })
+
+describe('stale call cards', () => {
+  it('a finished card from the last incident is ignored once the house has no call', () => {
+    const h = withCall({ ...base, call_status: 'none', outcome: 'none', call_result: null }, { phase: 'no_answer', result: 'unreachable' })
+    expect(h.call_result).toBe(null)
+    const live = withCall({ ...base, call_status: 'none' }, { phase: 'ringing', ring_left_s: 20 })
+    expect(live.call_phase).toBe('ringing')
+  })
+})

@@ -28,7 +28,7 @@ async def test_reset_isolation(client, pool, run_id):
         await client.post("/api/ingest", json=batch(run_a, T0 + timedelta(minutes=5 * i), 57.0 - i, False))
     await loop.compute_homes()
     await asyncio.sleep(0)
-    assert len(state.episodes) == 40 and len(state.events) == 20  # deque keeps the latest 20
+    assert len(state.episodes) == 40 and len(state.events) == 41  # reset + 40 thresholds (deque keeps 60)
     await pool.execute(INSERT_PRED_SQL, [T0], [run_a], ["H-01"], [30], ["learned"],
                        [T0 + timedelta(minutes=5)], [50.0])
     assert (await client.get("/api/accuracy")).json()[0]["n"] == 1  # run A has a scored forecast

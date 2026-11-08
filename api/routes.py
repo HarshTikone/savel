@@ -9,6 +9,7 @@ from api import loop
 from api.agent import manager
 from api.db import get_pool
 from api.predict import estimate, predict_curve
+from api.risk import risk_score
 from api.queries import SERIES_SQL, fetch_accuracy
 from api.simctl import SPEEDUP, sim_post, sim_state
 from api.state import state
@@ -33,7 +34,17 @@ async def _refresh() -> None:
 
 @router.get("/api/homes")
 async def homes():
-    return state.homes_cache
+    """The loop rebuilds homes every 2 s; call state changes instantly. Overlay the live call fields
+    (and the risk that depends on them) so the house list and the calls list always agree."""
+    out = []
+    for h in state.homes_cache:
+        c = state.calls.get(h["id"])
+        if c is not None and (c.get("call_status"), c.get("outcome")) != (h.get("call_status"), h.get("outcome")):
+            h = {**h, "call_status": c.get("call_status", "none"), "outcome": c.get("outcome", "none"),
+                 "call_result": c.get("call_result") or h.get("call_result")}
+            h["risk"] = int(risk_score(h, c))
+        out.append(h)
+    return out
 
 
 @router.get("/api/state")

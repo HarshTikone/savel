@@ -80,6 +80,7 @@ async def test_live_call_counter(monkeypatch):
         return {}
 
     monkeypatch.setattr(simctl, "sim_post", fake_post)
+    monkeypatch.setattr(simctl, "LIVE_CALL_SPEEDUP", 30)   # the counter logic, independent of the default
     state.sim_state = {"speed": 120}
     await simctl.set_live_call(True)
     await simctl.set_live_call(True)

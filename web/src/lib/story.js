@@ -35,9 +35,13 @@ export function eventsSinceCut(events, id) {
   return i < 0 ? list : list.slice(0, i + 1)
 }
 
+const CALL_LIVE = ['ringing', 'in_call', 'extracting']
+
 // Merge the house with its entry on the calls board, so call changes show up at once.
 export function withCall(home, entry) {
   if (!home || !entry) return home
+  // A finished call card from an earlier incident does not belong to the new one.
+  if (!CALL_LIVE.includes(entry.phase) && home.call_status === 'none') return home
   return {
     ...home,
     call_phase: entry.phase,
@@ -45,8 +49,6 @@ export function withCall(home, entry) {
     call_result: entry.result || home.call_result || null,
   }
 }
-
-const CALL_LIVE = ['ringing', 'in_call', 'extracting']
 
 // The call step is only "reached" when the call has a result (answered, or not answered).
 export function callFinished(home) {

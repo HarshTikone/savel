@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useDashboardData } from './hooks/useDashboardData'
 import { useVoiceCall } from './hooks/useVoiceCall'
-import { useCalls } from './hooks/useCalls'
 import { useTrends } from './hooks/useTrends'
 import { useSim } from './hooks/useSim'
 import TopBar from './components/TopBar'
@@ -31,7 +30,7 @@ export default function App() {
   const data = useDashboardData()
   const homesById = Object.fromEntries(data.homes.map((h) => [h.id, h]))
   const voice = useVoiceCall(homesById)
-  const calls = useCalls(data.runId)
+  const calls = data.calls || []
   const trends = useTrends(data.runId)
   const sim = useSim(data.refresh)
   const [helpPending, setHelpPending] = useState({})

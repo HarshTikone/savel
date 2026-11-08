@@ -71,3 +71,6 @@ export const helpHome = (id) =>
   isMock() ? mock({ home_id: id, outcome: 'helped' }) : request(`/api/homes/${encodeURIComponent(id)}/help`, { method: 'POST' })
 
 export const getCalls = () => (isMock() ? Promise.resolve([]) : request('/api/calls'))
+
+export const getBriefing = (id) =>
+  isMock() ? mock({ home_id: id, text: `${id}: briefing unavailable in mock mode.`, source: 'template' }) : request(`/api/homes/${encodeURIComponent(id)}/briefing`)

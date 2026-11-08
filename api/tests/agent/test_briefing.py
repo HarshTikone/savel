@@ -15,8 +15,24 @@ def home(**kw):
 
 def test_facts_and_template():
     t = briefing.template_briefing(home())
-    assert "H-13" in t and "oxygen" in t and "about 1.6 hours" in t and "medical help" in t
+    assert "H-13" in t and "oxygen" in t and "medical help" in t
+    assert "about 1.6 hours" in briefing.home_facts(home())
     assert "carbon monoxide" in briefing.template_briefing(home(co_ppm=50, outcome="none"))
+
+
+def test_short_handoff_for_an_unanswered_call():
+    t = briefing.template_briefing(home(temp_f=48.2, slope_f_per_h=-6.5, status="critical", call_status="unreachable",
+                                        outcome="unreachable", call_result="unreachable"))
+    assert t.startswith("H-13, 75+, on oxygen, 48F and falling, didn't answer.")
+    assert "send someone in person" in t
+    assert len(t.split()) <= 25
+
+
+def test_helped_home_and_call_result_kept():
+    h = home(outcome="helped", call_result="unreachable", heating=True, status="recovering", power_on=True)
+    assert "keep monitoring" in briefing.template_briefing(h)
+    facts = briefing.home_facts(h)
+    assert "did not answer" in facts and "Help has been delivered" in facts
 
 
 @pytest.fixture

@@ -153,6 +153,10 @@ async def _compute() -> None:
             h60 = hours_to(temp, out, 60, k_pred)
             h50 = hours_to(temp, out, 50, k_pred)
         call = state.calls.get(hid)
+        if call and call.get("outcome") == "helped" and not heating:
+            # The house lost heat again after help: a new incident, so start fresh.
+            state.calls.pop(hid, None)
+            call = None
         call_status = (call or {}).get("call_status", "none")
         outcome = (call or {}).get("outcome", "none")
         st = status(temp, co, heating, h50, outcome, declining)

@@ -79,9 +79,8 @@ export default function ResponderPage({ data, voice, trends, onHelp, helpPending
   const selectedId = picked || focusId || (rankedHomes(homes)[0] || {}).id || null
   const home = homes.find((h) => h.id === selectedId)
   const rank = home ? rankOf(homes, home.id) : null
-  const focusHome = homes.find((h) => h.id === focusId)
-  const focusRank = focusHome ? rankOf(homes, focusId) : null
-  const steps = useStory(focusHome, focusRank, events, runId)
+  // The timeline follows the house on screen.
+  const steps = useStory(home, rank, events, runId)
   const series = useSeries(selectedId, runId)
   const calls = useCalls(runId)
   const callForHome = call && home && call.home_id === home.id ? call : null
@@ -89,10 +88,12 @@ export default function ResponderPage({ data, voice, trends, onHelp, helpPending
   return (
     <div className="page responder">
       <div className="incoming-slot"><IncomingCall call={call} voice={voice} /></div>
-      {focusHome && (
+      {home && (
         <section className="card story-card" aria-label="House story">
-          <div className="story-title">Following <button type="button" className="linklike strong" onClick={() => setPicked(focusId)}>{focusId}</button></div>
-          <HouseStory steps={steps} home={focusHome} rank={focusRank} />
+          <div className="story-title">Timeline · <span className="strong-id">{home.id}</span>
+            {steps.every((s) => s.state === 'todo') && <span className="muted"> · no incident right now</span>}
+          </div>
+          <HouseStory steps={steps} home={home} rank={rank} />
         </section>
       )}
       <Tiles homes={homes} state={state} />

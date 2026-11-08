@@ -120,3 +120,24 @@ describe('AI agent page', () => {
     expect(screen.getByText('Medical')).toBeInTheDocument()
   })
 })
+
+import { renderHook } from '@testing-library/react'
+import { useStory } from '../hooks/useStory'
+
+describe('story lifecycle', () => {
+  it('clears after it finishes and starts again on the next incident', () => {
+    vi.useFakeTimers()
+    const done = { ...base, power_on: true, heating: true, status: 'heated', outcome: 'helped', trend: 'heating', call_status: 'done' }
+    const { result, rerender } = renderHook(({ h }) => useStory(h, null, [], 'r1'), { initialProps: { h: done } })
+    expect(result.current.every((s) => s.state === 'done')).toBe(true)
+    vi.advanceTimersByTime(13000)
+    rerender({ h: { ...done } })
+    expect(result.current.every((s) => s.state === 'todo')).toBe(true)
+    rerender({ h: { ...done } })
+    expect(result.current.every((s) => s.state === 'todo')).toBe(true)      // stays clear
+    rerender({ h: { ...base, power_on: false, heating: false, status: 'cooling', outcome: 'none', call_status: 'none' } })
+    expect(result.current[0].state).toBe('done')                          // new power cut
+    expect(result.current[5].state).toBe('todo')                          // help not pre-ticked
+    vi.useRealTimers()
+  })
+})

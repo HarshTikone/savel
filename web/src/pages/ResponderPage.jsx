@@ -8,6 +8,7 @@ import HouseStory from '../components/HouseStory'
 import CallPanel from '../components/CallPanel'
 import TemperatureChart from '../components/TemperatureChart'
 import ActivityFeed from '../components/ActivityFeed'
+import GlobeIntro from '../components/GlobeIntro'
 import TrendStrip from '../components/TrendStrip'
 import CallsBoard from '../components/CallsBoard'
 import { useSeries } from '../hooks/useSeries'
@@ -58,6 +59,8 @@ export default function ResponderPage({ data, voice, calls = [], homesById = {},
   const { homes, state, events, call, runId } = data
   const [picked, setPicked] = useState(null)
   const [mapMode, setMapMode] = useState('map')
+  const [intro, setIntro] = useState(true)       // Earth intro each time the Responder page opens
+  const [introRun, setIntroRun] = useState(false)
   const [pulseId, setPulseId] = useState(null)
   const lastCall = useRef(null)
 
@@ -112,7 +115,8 @@ export default function ResponderPage({ data, voice, calls = [], homesById = {},
               <button type="button" className={mapMode === 'grid' ? 'on' : ''} onClick={() => setMapMode('grid')}>Grid</button>
             </div>
           </div>
-          <div className="map-body">
+          <div className={`map-body${intro ? ' intro' : ''}${introRun ? ' run' : ''}`}>
+            {intro && <GlobeIntro onStart={() => setIntroRun(true)} onDone={() => { setIntro(false); setIntroRun(false) }} />}
             {mapMode === 'map' ? (
               <HomeMap homes={homes} blocks={state ? state.blocks : []} selectedId={selectedId} onSelect={setPicked} runKey={runId} pulseId={pulseId} onTileFail={() => setMapMode('grid')} />
             ) : (

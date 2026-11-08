@@ -18,7 +18,8 @@ from api.state import state
 log = logging.getLogger("api.agent.manager")
 
 SCRIPTED_SECONDS = float(os.getenv("SCRIPTED_CALL_SECONDS", "8"))
-LIVE_WAIT_S = float(os.getenv("LIVE_CALL_WAIT_S", "420"))   # ring + a real conversation + webhook delay
+LIVE_WAIT_S = float(os.getenv("LIVE_CALL_WAIT_S", "40"))       # how long a live call may ring before the scripted fallback
+LIVE_TALK_S = float(os.getenv("LIVE_CALL_TALK_S", "300"))      # once answered: conversation + webhook delay
 RETRY_STORM_MIN = float(os.getenv("CALL_RETRY_STORM_MINUTES", "20"))
 LIVE_FALLBACK = os.getenv("LIVE_FALLBACK", "scripted")
 LIVE_HOMES = {h.strip() for h in os.getenv("LIVE_HOMES", "H-13").split(",") if h.strip()}
@@ -28,6 +29,7 @@ last_extracted: dict[str, dict] = {}     # home_id -> {"run_id", "source", "extr
 _active: dict[str, str] = {}              # home_id -> run_id of the flow in progress
 _flows: dict[str, "asyncio.Task"] = {}
 _live_waiters: dict[str, asyncio.Future] = {}
+_live_answered: set[str] = set()          # homes whose live call was picked up (browser session connected)
 _tasks: set[asyncio.Task] = set()
 _sem: asyncio.Semaphore | None = None
 _sem_loop = None
@@ -167,6 +169,17 @@ async def _scripted_attempt(home: dict, run_id: str, attempt: int, started) -> b
     return True
 
 
+def mark_live_answered(home_id: str) -> bool:
+    """The dashboard connected the voice agent for a ringing live call: stop the ring timeout."""
+    if home_id not in _live_waiters:
+        return False
+    _live_answered.add(home_id)
+    if _current and _current["home_id"] == home_id and _current["source"] == "live" and _current["phase"] == "ringing":
+        _current["phase"] = "in_call"
+    _set(home_id, "in_call")
+    return True
+
+
 async def _live_attempt(home: dict, run_id: str, started) -> bool | None:
     """True answered, False no answer, None = fell through to caller's fallback."""
     hid = home["id"]
@@ -177,11 +190,19 @@ async def _live_attempt(home: dict, run_id: str, started) -> bool | None:
     fut = asyncio.get_running_loop().create_future()
     _live_waiters[hid] = fut
     await set_live_call(True)
+    _live_answered.discard(hid)
     try:
-        lines = await asyncio.wait_for(fut, LIVE_WAIT_S)
+        try:
+            lines = await asyncio.wait_for(asyncio.shield(fut), LIVE_WAIT_S)
+        except asyncio.TimeoutError:
+            if hid not in _live_answered:
+                lines = None
+            else:                                  # picked up while ringing: allow the whole conversation
+                lines = await asyncio.wait_for(fut, LIVE_TALK_S)
     except asyncio.TimeoutError:
         lines = None
     finally:
+        _live_answered.discard(hid)
         if _live_waiters.get(hid) is fut:
             del _live_waiters[hid]
         await set_live_call(False)

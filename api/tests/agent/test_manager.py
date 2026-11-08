@@ -126,6 +126,24 @@ async def test_live_timeout_falls_back_to_scripted(setup, monkeypatch):
     assert m.current_view()["source"] == "scripted"
 
 
+async def test_answered_live_call_outlives_ring_timeout(setup, monkeypatch):
+    monkeypatch.setattr(m, "LIVE_HOMES", {"H-13"})
+    monkeypatch.setattr(m, "LIVE_WAIT_S", 0.2)
+    state.homes_cache = [mk("H-13")]
+    await m.trigger_call("H-13", "warning")
+    for _ in range(50):
+        if "H-13" in m._live_waiters:
+            break
+        await asyncio.sleep(0.02)
+    assert m.mark_live_answered("H-13")
+    assert m.current_view()["phase"] == "in_call"
+    await asyncio.sleep(0.5)                     # past the ring timeout: still waiting, no fallback
+    assert "H-13" in m._live_waiters
+    assert await m.handle_live_transcript("H-13", ["SAVEL: Is your heat on?", "Resident: No heat, need help."])
+    await settle("H-13")
+    assert m.current_view()["source"] == "live" and state.calls["H-13"]["outcome"] == "needs_help"
+
+
 async def test_live_silent_call_counts_as_no_answer(monkeypatch):
     monkeypatch.setattr(m, "LIVE_HOMES", {"H-13"})
     state.homes_cache = [mk("H-13")]

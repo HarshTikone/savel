@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { POLL_MS, HEALTH_MS, STALE_AFTER_FAILS, DATA_MODE } from '../config'
-import { getState, getHomes, getEvents, getCurrentCall, getAccuracy, getHealth } from '../services/api'
+import { getState, getHomes, getEvents, getCurrentCall, getAccuracy, getHealth, getCalls } from '../services/api'
 
-const EMPTY = { state: null, homes: [], events: [], call: null, accuracy: [] }
+const EMPTY = { state: null, homes: [], events: [], call: null, accuracy: [], calls: [] }
 
 export function useDashboardData({ onRunChange } = {}) {
   const [data, setData] = useState(EMPTY)
@@ -23,10 +23,10 @@ export function useDashboardData({ onRunChange } = {}) {
     inFlight.current = true
     try {
       const results = await Promise.allSettled([
-        getState(), getHomes(), getEvents(), getCurrentCall(), getAccuracy(),
+        getState(), getHomes(), getEvents(), getCurrentCall(), getAccuracy(), getCalls(),
       ])
       if (!alive.current) return
-      const [st, hm, ev, cl, ac] = results
+      const [st, hm, ev, cl, ac, cs] = results
       if (results.every((r) => r.status === 'rejected')) {
         failCount.current += 1
         setFails(failCount.current)
@@ -41,13 +41,15 @@ export function useDashboardData({ onRunChange } = {}) {
       if (runId !== null) prevRun.current = runId
 
       setData((prev) => {
-        const base = changed ? { ...prev, events: [], call: null, accuracy: [] } : prev
+        const base = changed ? { ...prev, events: [], call: null, accuracy: [], calls: [] } : prev
         return {
           state: st.status === 'fulfilled' ? st.value : base.state,
           homes: hm.status === 'fulfilled' ? hm.value : base.homes,
           events: ev.status === 'fulfilled' ? ev.value : base.events,
           call: cl.status === 'fulfilled' ? cl.value : base.call,
           accuracy: ac.status === 'fulfilled' ? ac.value : base.accuracy,
+          // Fetched in the same poll as homes, so the screen never shows a call the house list hasn't caught up with.
+          calls: cs && cs.status === 'fulfilled' && Array.isArray(cs.value) ? cs.value : base.calls,
         }
       })
       if (changed && runChangeRef.current) runChangeRef.current(runId)

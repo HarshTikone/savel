@@ -7,6 +7,7 @@ import time
 from datetime import timedelta
 
 from api.calls import trigger_call
+from api.agent.manager import cancel_ringing
 from api.db import get_pool
 from api.predict import estimate, hours_to, median, status
 from api.queries import HOMES_SQL, INSERT_PRED_SQL, fetch_k_fit, fetch_latest
@@ -87,6 +88,10 @@ async def _compute() -> None:
     speed = int(sim.get("speed") or SPEEDUP)
     block_power = {b["block"]: bool(b["power_on"]) for b in sim.get("blocks", [])}
     houses_off = set(sim.get("houses_off", []))
+    houses_on = set(sim.get("houses_on", []))
+
+    def has_power(hid: str, block: str, default: bool = True) -> bool:
+        return (block_power.get(block, default) or hid in houses_on) and hid not in houses_off
 
     pool = await get_pool()
     homes = await _static_homes(pool)
@@ -117,7 +122,7 @@ async def _compute() -> None:
         if last is None:
             # Never reported in this run (no battery, block dark since the run began):
             # estimate from the setpoint at run start so silence raises concern.
-            if state.run_started is None or (block_power.get(h["block"], True) and hid not in houses_off):
+            if state.run_started is None or has_power(hid, h["block"]):
                 continue
             out = float(sim.get("outdoor_f", OUTDOOR_F))
             silent_h = (sim_now - state.run_started).total_seconds() / 3600
@@ -133,15 +138,17 @@ async def _compute() -> None:
                 temp = median([v for _, v in pts[-MEDIAN_N:]])   # one noisy reading or spike can't move it
             trend = classify(pts) if online and not heating else trend
             if not online:
-                power_on = block_power.get(h["block"], power_on) and hid not in houses_off
+                power_on = has_power(hid, h["block"], power_on)
                 if not power_on:
                     heating = False  # the sensor went quiet and its block has no power: no heat either
                 if not heating and k_calc > 0:
                     temp = estimate(temp, out, k_calc, silent_s / 3600)
 
         slope = trend.get("slope_f_per_h")
+        power_now = has_power(hid, h["block"]) if block_power else power_on   # simulator truth, no report lag
         declining = (not heating) and (trend.get("label") in ("declining", "slowing", "falling", "insufficient")
-                                       or (slope is not None and slope <= -1.0))
+                                       or (slope is not None and slope <= -1.0)
+                                       or (not power_now and slope is not None and slope < 0))
         # Countdown from the robust trend when we have one (k = -slope / (T - outdoor)), else the fit.
         k_pred = None
         if declining and slope is not None and slope < 0 and temp - out > 1:
@@ -153,7 +160,6 @@ async def _compute() -> None:
             h60 = hours_to(temp, out, 60, k_pred)
             h50 = hours_to(temp, out, 50, k_pred)
         call = state.calls.get(hid)
-        power_now = block_power.get(h["block"], True) and hid not in houses_off   # simulator truth, no report lag
         if call and call.get("outcome") == "helped" and not power_now:
             # The house lost power again after help: a new incident, so start fresh.
             state.calls.pop(hid, None)
@@ -161,9 +167,11 @@ async def _compute() -> None:
         call_status = (call or {}).get("call_status", "none")
         outcome = (call or {}).get("outcome", "none")
         st = status(temp, co, heating, h50, outcome, declining)
+        if outcome == "helped" and power_now and co < 35 and st in ("cooling", "warning", "critical"):
+            st = "recovering"     # power is back; the next sensor report will show the furnace running
         home = {
             "id": hid, "block": h["block"], "lat": h["lat"], "lon": h["lon"],
-            "temp_f": round(temp, 2), "co_ppm": round(co, 2), "power_on": power_on, "heating": heating,
+            "temp_f": round(temp, 2), "co_ppm": round(co, 2), "power_on": power_now, "heating": heating,
             "online": online, "k_est": None if k_est is None else round(k_est, 4), "k_source": k_source,
             "hours_to_60": None if h60 is None else round(h60, 2),
             "hours_to_50": None if h50 is None else round(h50, 2),
@@ -185,6 +193,8 @@ async def _compute() -> None:
             state.episodes.add(hid)
             state.add_event("threshold", hid, f"{hid} reached {st}", st)
             _spawn(trigger_call(hid, reason=st))
+        if power_now and co < 35 and call_status == "ringing" and outcome == "none":
+            cancel_ringing(hid)          # power came back on its own before anyone answered (simulator truth, no report lag)
         if heating and co < 35:
             state.episodes.discard(hid)
             state.ok_baseline.pop(hid, None)
@@ -218,7 +228,7 @@ async def _compute() -> None:
                 [p[1] for p in preds], [p[2] for p in preds],
                 [sim_now + timedelta(minutes=p[1]) for p in preds], [p[3] for p in preds])
 
-    results.sort(key=lambda x: (-x["risk"], x["hours_to_50"] if x["hours_to_50"] is not None else math.inf, x["id"]))
+    results.sort(key=lambda x: (-x["risk"], x["temp_f"], x["hours_to_50"] if x["hours_to_50"] is not None else math.inf, x["id"]))
     if state.run_id == run_id:
         state.homes_cache = results
 

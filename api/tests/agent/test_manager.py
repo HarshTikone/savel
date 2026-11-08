@@ -333,3 +333,44 @@ async def test_browser_transcript_finishes_call_and_webhook_copy_is_ignored(setu
     await settle("H-35b")
     assert state.calls["H-35b"]["outcome"] == "needs_help"
     assert not await m.handle_live_transcript("H-35b", lines)      # webhook copy arrives later
+
+
+async def test_browser_transcript_needs_an_open_live_call(setup):
+    assert not m.live_call_open("H-05")
+
+
+async def test_power_back_while_ringing_cancels_the_call(setup, monkeypatch):
+    monkeypatch.setattr(m, "LIVE_ALL", True)
+    state.homes_cache = [mk("H-24")]
+    await m.trigger_call("H-24", "warning")
+    for _ in range(50):
+        if "H-24" in m._live_waiters:
+            break
+        await asyncio.sleep(0.02)
+    assert m.cancel_ringing("H-24")
+    await settle("H-24")
+    assert state.calls["H-24"] == {"call_status": "none", "outcome": "none"}
+    card = next(b for b in m.all_views() if b["home_id"] == "H-24")
+    assert card["phase"] == "done" and card["result"] is None
+
+
+async def test_answered_call_is_not_cancelled(setup, monkeypatch):
+    monkeypatch.setattr(m, "LIVE_ALL", True)
+    state.homes_cache = [mk("H-25")]
+    await m.trigger_call("H-25", "warning")
+    for _ in range(50):
+        if "H-25" in m._live_waiters:
+            break
+        await asyncio.sleep(0.02)
+    m.mark_live_answered("H-25")
+    assert not m.cancel_ringing("H-25")
+    m.resolve("H-25")
+
+
+async def test_homes_list_overlays_live_call_state():
+    from api import routes
+    state.homes_cache = [{**mk("H-40"), "call_status": "none", "outcome": "none", "risk": 30, "status": "warning",
+                          "temp_f": 55.0, "co_ppm": 0.0, "heating": False, "hours_to_50": 2.0, "online": True}]
+    state.calls["H-40"] = {"call_status": "unreachable", "outcome": "unreachable"}
+    h = (await routes.homes())[0]
+    assert h["call_status"] == "unreachable" and h["risk"] > 30

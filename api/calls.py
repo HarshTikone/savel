@@ -47,8 +47,8 @@ async def calls_live_ended(body: dict):
     on the ElevenLabs webhook; whichever transcript arrives first is used, the other is ignored."""
     hid = str(body.get("home_id", ""))
     manager.mark_live_ended(hid)
-    lines = [str(x) for x in (body.get("transcript") or []) if str(x).strip()][:80]
-    if hid and lines:
+    lines = [str(x)[:600] for x in (body.get("transcript") or [])[:80] if str(x).strip()]
+    if hid and lines and manager.live_call_open(hid):
         t = asyncio.create_task(manager.handle_live_transcript(hid, lines))
         _bg.add(t)
         t.add_done_callback(_bg.discard)

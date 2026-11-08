@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import homes from '../data/mock/homes.json'
 import state from '../data/mock/state.json'
-import { reachedNow, rankedHomes, STORY_STEPS } from '../lib/story'
+import { reachedNow, rankedHomes, STORY_STEPS, withCall } from '../lib/story'
 import { homeColor, STATUS_COLOR } from '../lib/colors'
 
 vi.mock('../components/HomeMap', () => ({ default: () => <div data-testid="map" /> }))
@@ -19,7 +19,7 @@ describe('story', () => {
   it('walks the steps from data', () => {
     expect(reachedNow({ ...base, status: 'heated', heating: true, power_on: true }, null, [])).toEqual(new Set())
     const r = reachedNow({ ...base, call_status: 'done', outcome: 'medical' }, 1, [])
-    expect([...r]).toEqual(['cut', 'cooling', 'threshold', 'call', 'ranked'])
+    expect([...r]).toEqual(['cut', 'cooling', 'threshold', 'ranked', 'call'])
     const back = reachedNow({ ...base, power_on: true, heating: true, status: 'heated', outcome: 'helped' }, null, [])
     expect(back.has('help') && back.has('normal')).toBe(true)
     expect(STORY_STEPS).toHaveLength(7)
@@ -132,8 +132,9 @@ import { useStory, _resetStoriesForTests } from '../hooks/useStory'
 describe('story lifecycle', () => {
   it('clears 12 s after it finishes, survives remounts, and restarts on the next incident', () => {
     _resetStoriesForTests()
-    const done = { ...base, power_on: true, heating: true, status: 'heated', outcome: 'helped', trend: 'heating', call_status: 'done' }
+    const done = { ...base, power_on: true, heating: true, status: 'heated', outcome: 'helped', trend: 'heating', call_status: 'done', call_result: 'ok' }
     const t0 = 1_000_000
+    useStory({ ...base, call_status: 'done', outcome: 'ok', call_result: 'ok' }, 1, [], 'r1', t0 - 1000)   // seen during the incident
     expect(useStory(done, null, [], 'r1', t0).every((s) => s.state === 'done')).toBe(true)
     expect(useStory(done, null, [], 'r1', t0 + 5000).cleared).toBe(false)
     const cleared = useStory(done, null, [], 'r1', t0 + 13000)
@@ -149,10 +150,49 @@ describe('story lifecycle', () => {
     expect(steps.find((s) => s.key === 'call').state).toBe('failed')
     expect(steps.find((s) => s.key === 'help').state).toBe('done')
   })
+  it('a ringing call is in progress, not ticked', () => {
+    _resetStoriesForTests()
+    const h = withCall({ ...base, call_status: 'ringing' }, { phase: 'ringing', ring_left_s: 21, result: null })
+    const steps = useStory(h, 1, [], 'r4', 0)
+    expect(steps.find((s) => s.key === 'ranked').state).toBe('done')
+    expect(steps.find((s) => s.key === 'call').state).toBe('current')
+    const declined = withCall({ ...base, call_status: 'ringing' }, { phase: 'no_answer', result: 'unreachable' })
+    expect(useStory(declined, 1, [], 'r4', 1000).find((s) => s.key === 'call').state).toBe('failed')   // red at once
+  })
+  it('help before any call result shows a grey dash, not a green tick', () => {
+    _resetStoriesForTests()
+    const steps = useStory({ ...base, power_on: true, heating: true, status: 'recovering', call_status: 'done', outcome: 'helped', call_result: null }, null, [], 'r5', 0)
+    expect(steps.find((s) => s.key === 'call').state).toBe('skipped')
+  })
+  it('a finished incident does not replay after a reload', () => {
+    _resetStoriesForTests()
+    const done = { ...base, power_on: true, heating: true, status: 'heated', outcome: 'helped', trend: 'heating', call_status: 'done', call_result: 'ok' }
+    expect(useStory(done, null, [], 'r6', 0).cleared).toBe(true)
+  })
   it('an unanswered call shows red and the story carries on', () => {
     _resetStoriesForTests()
     const steps = useStory({ ...base, call_status: 'unreachable', outcome: 'unreachable' }, 1, [], 'r2', 0)
     expect(steps.find((s) => s.key === 'call').state).toBe('failed')
     expect(steps.find((s) => s.key === 'ranked').state).toBe('done')
+  })
+})
+
+describe('priority ties', () => {
+  it('homes at the risk cap are ordered coldest first', () => {
+    const list = rankedHomes([
+      { ...base, id: 'H-17', risk: 100, temp_f: 51 },
+      { ...base, id: 'H-01', risk: 100, temp_f: 50 },
+      { ...base, id: 'H-10', risk: 100, temp_f: 44 },
+    ])
+    expect(list.map((h) => h.id)).toEqual(['H-10', 'H-01', 'H-17'])
+  })
+})
+
+describe('stale call cards', () => {
+  it('a finished card from the last incident is ignored once the house has no call', () => {
+    const h = withCall({ ...base, call_status: 'none', outcome: 'none', call_result: null }, { phase: 'no_answer', result: 'unreachable' })
+    expect(h.call_result).toBe(null)
+    const live = withCall({ ...base, call_status: 'none' }, { phase: 'ringing', ring_left_s: 20 })
+    expect(live.call_phase).toBe('ringing')
   })
 })

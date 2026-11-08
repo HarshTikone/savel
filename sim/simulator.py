@@ -126,6 +126,7 @@ class Sim:
         self.cut_at: dict[str, datetime | None] = {b: None for b in BLOCKS}
         self.skipped: set[str] = set()
         self.house_off: set[str] = set()   # single homes with their own power cut
+        self.house_on: set[str] = set()    # homes a responder powered back up while their block is dark
         self.last_report = LIVE_START
 
     # -- physics
@@ -133,6 +134,8 @@ class Sim:
         """Does this home still have power? A block cut reaches each home a few minutes apart."""
         if hid in self.house_off:
             return False
+        if hid in self.house_on:
+            return True
         block = self.by_id[hid]["block"]
         if self.power[block]:
             return True
@@ -170,7 +173,7 @@ class Sim:
             self.temp[hid] = t
         self.sim_now += timedelta(seconds=dt_s)
 
-    def batch(self) -> list[dict]:
+    def batch(self, allow_drop: bool = True) -> list[dict]:
         ts = self.sim_now.strftime("%Y-%m-%dT%H:%M:%SZ")
         rows = []
         for h in self.homes:
@@ -178,7 +181,7 @@ class Sim:
             power_on = self.mains(hid)
             if not power_on and not h["battery"]:
                 continue  # sensor offline: no mains, no battery
-            if hid not in self.skipped and self.noise.random() < DROPOUT_P:
+            if allow_drop and hid not in self.skipped and self.noise.random() < DROPOUT_P:
                 self.skipped.add(hid)
                 continue  # one missed reading (radio glitch)
             self.skipped.discard(hid)
@@ -221,6 +224,7 @@ class Sim:
         self.cut_at = {b: None for b in BLOCKS}
         self.skipped = set()
         self.house_off = set()
+        self.house_on = set()
         self.speed = SPEEDUP
         self.outdoor_f = OUTDOOR_F
         self.power = {b: True for b in BLOCKS}
@@ -242,7 +246,7 @@ class Sim:
             if rest:
                 self.step(rest * 60)
         self.last_report = self.sim_now
-        await self.post(self.batch())        # first report of the run right away
+        await self.post(self.batch(allow_drop=False))   # first report of the run: every home, right away
         log.info("reset run_id=%s prewarm=%s sim_now=%s", rid, prewarm, self.sim_now.isoformat())
         return {"run_id": rid, "sim_now": iso(self.sim_now), "speed": self.speed, "prewarm": prewarm}
 
@@ -251,6 +255,7 @@ class Sim:
             "run_id": self.run_id, "sim_now": iso(self.sim_now), "outdoor_f": self.outdoor_f,
             "speed": self.speed, "blocks": [{"block": b, "power_on": self.power[b]} for b in BLOCKS],
             "houses_off": sorted(self.house_off),
+            "houses_on": sorted(self.house_on),
             "report_every_s": int(REPORT_MIN * 60),
         }
 
@@ -324,6 +329,16 @@ async def restore_power(block: str):
 async def cut_house(home_id: str):
     async with sim.lock:
         sim.house_off.add(_home(home_id))
+        sim.house_on.discard(home_id)
+    return sim.state()
+
+
+@app.post("/power_house/{home_id}")
+async def power_house(home_id: str):
+    """Help delivered: this home has heat again even if its whole block is still dark."""
+    async with sim.lock:
+        sim.house_off.discard(_home(home_id))
+        sim.house_on.add(home_id)
     return sim.state()
 
 

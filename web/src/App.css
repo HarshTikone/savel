@@ -285,3 +285,6 @@ details summary { cursor: pointer; color: var(--muted); font-size: 12px; }
 .story-step.failed .story-dot { background: var(--status-critical); border-color: var(--status-critical); color: #fff; }
 .story-step.failed .story-label { color: #fca5a5; }
 .story:not(.vertical) .story-step.failed:not(:last-child)::after, .story.vertical .story-step.failed:not(:last-child)::after { background: var(--status-critical); }
+
+.story-step.skipped .story-dot { background: var(--surface-2); border-color: var(--line); color: var(--muted); }
+.story-step.current .story-detail { color: var(--accent); font-weight: 600; }

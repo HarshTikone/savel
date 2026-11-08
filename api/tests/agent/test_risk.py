@@ -87,3 +87,9 @@ def test_unreachable_outranks_answered_needs_help():
 def test_ok_call_stays_listed():
     a = home(temp_f=59.5, heating=False, hours_to_50=None)
     assert risk_score(a, {"call_status": "done", "outcome": "ok"}) >= 1
+
+
+def test_helped_does_not_hide_carbon_monoxide():
+    h = home(temp_f=66, heating=False, co_ppm=70, status="critical")
+    assert risk_score(h, {"call_status": "done", "outcome": "helped"}) >= 30
+    assert risk_score(home(temp_f=50, heating=True, status="recovering"), {"call_status": "done", "outcome": "helped"}) == 0

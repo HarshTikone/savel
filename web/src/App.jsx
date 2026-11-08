@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useDashboardData } from './hooks/useDashboardData'
 import { useVoiceCall } from './hooks/useVoiceCall'
-import { useCalls } from './hooks/useCalls'
 import { useTrends } from './hooks/useTrends'
 import { useSim } from './hooks/useSim'
 import TopBar from './components/TopBar'
@@ -31,7 +30,7 @@ export default function App() {
   const data = useDashboardData()
   const homesById = Object.fromEntries(data.homes.map((h) => [h.id, h]))
   const voice = useVoiceCall(homesById)
-  const calls = useCalls(data.runId)
+  const calls = data.calls || []
   const trends = useTrends(data.runId)
   const sim = useSim(data.refresh)
   const [helpPending, setHelpPending] = useState({})
@@ -50,7 +49,7 @@ export default function App() {
     <div className="app">
       <TopBar page={page} state={data.state} connection={data.connection} />
       {page === 'sim' ? (
-        <SimulationPage data={data} sim={sim} onHelp={onHelp} helpPending={helpPending} />
+        <SimulationPage data={data} sim={sim} calls={calls} onHelp={onHelp} helpPending={helpPending} />
       ) : page === 'agent' ? (
         <AgentPage data={data} voice={voice} calls={calls} homesById={homesById} />
       ) : (

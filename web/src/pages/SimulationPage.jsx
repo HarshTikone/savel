@@ -3,7 +3,7 @@ import { Zap, ZapOff, Wind, RotateCcw, Check, Snowflake, Gauge, Building2 } from
 import HouseStory from '../components/HouseStory'
 import StatusPill from '../components/StatusPill'
 import { useStory } from '../hooks/useStory'
-import { rankOf } from '../lib/story'
+import { rankOf, withCall } from '../lib/story'
 import { homeColor } from '../lib/colors'
 import { temp } from '../lib/format'
 import { SPEED_PRESETS } from '../config'
@@ -32,7 +32,7 @@ function HouseGrid({ homes, selectedId, onSelect, housesOff }) {
   )
 }
 
-export default function SimulationPage({ data, sim, onHelp, helpPending }) {
+export default function SimulationPage({ data, sim, calls = [], onHelp, helpPending }) {
   const { homes, state, events, runId } = data
   const [picked, setPicked] = useState(null)
   const [vent, setVent] = useState({})
@@ -40,7 +40,8 @@ export default function SimulationPage({ data, sim, onHelp, helpPending }) {
   const selectedId = picked || focusId || 'H-13'
   const home = homes.find((h) => h.id === selectedId)
   const rank = home ? rankOf(homes, home.id) : null
-  const steps = useStory(home, rank, events, runId)
+  const storyHome = withCall(home, home ? calls.find((c) => c.home_id === home.id) : null)
+  const steps = useStory(storyHome, rank, events, runId)
   const housesOff = (state && state.houses_off) || []
   const off = housesOff.includes(selectedId)
   const blocks = (state && state.blocks) || []
@@ -79,7 +80,7 @@ export default function SimulationPage({ data, sim, onHelp, helpPending }) {
               </button>
             </div>
             <h3>What happens next</h3>
-            <HouseStory steps={steps} home={home} rank={rank} vertical />
+            <HouseStory steps={steps} home={storyHome} rank={rank} vertical />
           </>
         ) : <p className="muted">Waiting for data…</p>}
         {sim.error && <p className="error">{sim.error.detail}</p>}

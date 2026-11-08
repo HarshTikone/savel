@@ -9,6 +9,7 @@ from api import loop
 from api.agent import manager
 from api.db import get_pool
 from api.predict import estimate, predict_curve
+from api.risk import risk_score
 from api.queries import SERIES_SQL, fetch_accuracy
 from api.simctl import SPEEDUP, sim_post, sim_state
 from api.state import state
@@ -33,7 +34,17 @@ async def _refresh() -> None:
 
 @router.get("/api/homes")
 async def homes():
-    return state.homes_cache
+    """The loop rebuilds homes every 2 s; call state changes instantly. Overlay the live call fields
+    (and the risk that depends on them) so the house list and the calls list always agree."""
+    out = []
+    for h in state.homes_cache:
+        c = state.calls.get(h["id"])
+        if c is not None and (c.get("call_status"), c.get("outcome")) != (h.get("call_status"), h.get("outcome")):
+            h = {**h, "call_status": c.get("call_status", "none"), "outcome": c.get("outcome", "none"),
+                 "call_result": c.get("call_result") or h.get("call_result")}
+            h["risk"] = int(risk_score(h, c))
+        out.append(h)
+    return out
 
 
 @router.get("/api/state")
@@ -126,10 +137,11 @@ async def help_delivered(home_id: str):
     """A responder reached the home: close its call, bring its power back, let it warm up."""
     home_id = _validate("cut_house", home_id)
     manager.resolve(home_id)
-    try:
-        await sim_post("restore_house", home_id)
-    except HTTPException:
-        log.warning("restore_house failed for %s", home_id)
+    for action in ("power_house", "clear_vent"):   # the responder restores heat (even in a dark block) and clears a blocked vent
+        try:
+            await sim_post(action, home_id)
+        except HTTPException:
+            log.warning("%s failed for %s", action, home_id)
     state.add_event("help_delivered", home_id, f"Help delivered at {home_id}; power restored", "info")
     await _refresh()
     return {"home_id": home_id, "outcome": "helped"}
@@ -137,7 +149,7 @@ async def help_delivered(home_id: str):
 
 @router.get("/api/events")
 async def events():
-    return list(reversed(state.events))[:20]
+    return list(reversed(state.events))[:30]
 
 
 @router.get("/api/accuracy")

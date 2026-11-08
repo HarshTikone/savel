@@ -7,6 +7,7 @@ vi.mock('../services/api', () => ({
   getEvents: vi.fn(),
   getCurrentCall: vi.fn(),
   getAccuracy: vi.fn(),
+  getCalls: vi.fn(() => Promise.resolve([])),
   getHealth: vi.fn(),
 }))
 
@@ -49,7 +50,7 @@ describe('useDashboardData', () => {
     const { result } = renderHook(() => useDashboardData())
     await act(async () => { await vi.advanceTimersByTimeAsync(10) })
     expect(result.current.connection).toBe('live')
-    for (const fn of [api.getState, api.getHomes, api.getEvents, api.getCurrentCall, api.getAccuracy]) {
+    for (const fn of [api.getState, api.getHomes, api.getEvents, api.getCurrentCall, api.getAccuracy, api.getCalls]) {
       fn.mockRejectedValue(new Error('x'))
     }
     await act(async () => { await vi.advanceTimersByTimeAsync(POLL_MS * 2) })

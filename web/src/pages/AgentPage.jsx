@@ -102,7 +102,7 @@ export default function AgentPage({ data, voice, calls = [], homesById = {} }) {
                     <td><strong>{c.home_id}</strong></td>
                     <td>Block {c.home ? c.home.block : '?'}</td>
                     <td>{c.source === 'live' ? 'Live voice' : 'AI call'}</td>
-                    <td className={['needs_help', 'medical', 'unreachable'].includes(c.res) ? 'bad' : 'ok'}>{c.res ? OUTCOME_LABEL[c.res] : PHASE_LABEL[c.phase]}</td>
+                    <td className={['needs_help', 'medical', 'unreachable'].includes(c.res) ? 'bad' : 'ok'}>{c.res ? OUTCOME_LABEL[c.res] : /cancelled/i.test(c.last || '') ? 'Cancelled · heat is back' : PHASE_LABEL[c.phase]}</td>
                     <td className={c.outcome === 'helped' ? 'ok' : ''}>{c.outcome === 'helped' ? '✓ Delivered' : '—'}</td>
                     <td>{c.home ? temp(c.home.temp_f) : '—'}</td>
                   </tr>

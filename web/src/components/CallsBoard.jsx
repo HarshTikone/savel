@@ -1,5 +1,6 @@
 import { Phone, PhoneOff, PhoneCall, Bot, Mic } from 'lucide-react'
 import { OUTCOME_LABEL } from '../data/contract'
+import { callSettled } from '../lib/story'
 
 const PHASE = {
   ringing: { label: 'Ringing', icon: PhoneCall, tone: 'ring' },
@@ -9,8 +10,11 @@ const PHASE = {
   no_answer: { label: 'No answer', icon: PhoneOff, tone: 'bad' },
 }
 
-export default function CallsBoard({ calls, selectedId, onSelect }) {
-  if (!calls || calls.length === 0) return null
+export default function CallsBoard({ calls: all, homes = [], runId, selectedId, onSelect }) {
+  // Helped houses that are back to normal drop off the board, at the same time their timeline resets.
+  const byId = Object.fromEntries(homes.map((h) => [h.id, h]))
+  const calls = (all || []).filter((c) => !callSettled(byId[c.home_id], runId))
+  if (calls.length === 0) return null
   const active = calls.filter((c) => ['ringing', 'in_call', 'extracting'].includes(c.phase)).length
   return (
     <section className="card calls-board" aria-label="Check-in calls">

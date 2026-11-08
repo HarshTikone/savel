@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import homes from '../data/mock/homes.json'
 import state from '../data/mock/state.json'
-import { reachedNow, rankedHomes, STORY_STEPS, withCall } from '../lib/story'
+import { reachedNow, rankedHomes, STORY_STEPS, withCall, callSettled, _resetSettledForTests } from '../lib/story'
 import { homeColor, STATUS_COLOR } from '../lib/colors'
 
 vi.mock('../components/HomeMap', () => ({ default: () => <div data-testid="map" /> }))
@@ -194,5 +194,27 @@ describe('stale call cards', () => {
     expect(h.call_result).toBe(null)
     const live = withCall({ ...base, call_status: 'none' }, { phase: 'ringing', ring_left_s: 20 })
     expect(live.call_phase).toBe('ringing')
+  })
+})
+
+describe('check-in board clears settled houses', () => {
+  it('a helped house back to normal leaves the board after 12 s; others stay', () => {
+    _resetSettledForTests()
+    const done = { ...base, id: 'H-07', status: 'heated', outcome: 'helped', heating: true, power_on: true }
+    expect(callSettled(done, 'r9', 0)).toBe(false)
+    expect(callSettled(done, 'r9', 5000)).toBe(false)
+    expect(callSettled(done, 'r9', 13000)).toBe(true)
+    expect(callSettled({ ...done, status: 'recovering' }, 'r9', 14000)).toBe(false)   // still warming: stays
+    expect(callSettled({ ...base, id: 'H-08', outcome: 'unreachable' }, 'r9', 20000)).toBe(false)
+  })
+  it('the board hides settled cards and keeps the rest', () => {
+    _resetSettledForTests()
+    const homes = [{ ...base, id: 'H-01', status: 'heated', outcome: 'helped' }, { ...base, id: 'H-02', status: 'warning', outcome: 'unreachable' }]
+    const calls = [{ home_id: 'H-01', phase: 'no_answer', source: 'live', outcome: 'helped', result: 'unreachable' }, { home_id: 'H-02', phase: 'no_answer', source: 'live', outcome: 'unreachable', result: 'unreachable' }]
+    callSettled(homes[0], 'r10', Date.now() - 20000)        // H-01 has been back to normal for 20 s
+    render(<CallsBoard calls={calls} homes={homes} runId="r10" selectedId={null} onSelect={() => {}} />)
+    expect(screen.queryByText('H-01')).toBeNull()
+    expect(screen.getByText('H-02')).toBeInTheDocument()
+    expect(screen.getByText('1 house called')).toBeInTheDocument()
   })
 })

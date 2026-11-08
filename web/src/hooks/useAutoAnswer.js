@@ -8,6 +8,8 @@ export function useAutoAnswer(call, home) {
   const [enabled, setEnabled] = useState(false)
   const [status, setStatus] = useState('off')
   const [error, setError] = useState('')
+  const [liveLines, setLiveLines] = useState([])
+  const [ended, setEnded] = useState(false)
   const session = useRef(null)
   const lastKey = useRef(null)
 
@@ -42,6 +44,8 @@ export function useAutoAnswer(call, home) {
     let cancelled = false
     ;(async () => {
       setStatus('connecting')
+      setLiveLines([])
+      setEnded(false)
       try {
         const mod = await import(/* @vite-ignore */ ELEVEN_CLIENT_URL)
         const Conversation = mod.Conversation || (mod.default && mod.default.Conversation)
@@ -63,8 +67,15 @@ export function useAutoAnswer(call, home) {
               body: JSON.stringify({ home_id: ringing.home_id }),
             }).catch(() => {})
           },
+          onMessage: (m) => {
+            const text = m && (m.message || m.text)
+            if (!text) return
+            const who = m.source === 'ai' || m.role === 'agent' ? 'SAVEL' : 'Resident'
+            setLiveLines((prev) => [...prev, `${who}: ${text}`])
+          },
           onDisconnect: () => {
             session.current = null
+            setEnded(true)
             setStatus('ready')
           },
           onError: (e) => {
@@ -85,5 +96,5 @@ export function useAutoAnswer(call, home) {
 
   useEffect(() => { if (!ringKey && status !== 'talking') lastKey.current = null }, [ringKey, status])
 
-  return { enabled, status, error, enable, disable }
+  return { enabled, status, error, enable, disable, liveLines, ended }
 }

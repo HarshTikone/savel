@@ -6,12 +6,18 @@ import { reachedNow, rankedHomes, STORY_STEPS } from '../lib/story'
 import { homeColor, STATUS_COLOR } from '../lib/colors'
 
 vi.mock('../components/HomeMap', () => ({ default: () => <div data-testid="map" /> }))
+vi.mock('../hooks/useCalls', () => ({ useCalls: () => [
+  { home_id: 'H-13', phase: 'in_call', source: 'live', outcome: 'none', last: 'Resident: it is freezing' },
+  { home_id: 'H-27', phase: 'ringing', source: 'scripted', outcome: 'none', last: '' },
+  { home_id: 'H-14', phase: 'done', source: 'scripted', outcome: 'medical', last: '' },
+] }))
 vi.mock('../hooks/useSeries', () => ({ useSeries: () => ({ series: null, error: null, loading: false }) }))
 
 import ResponderPage from '../pages/ResponderPage'
 import SimulationPage from '../pages/SimulationPage'
+import AgentPage from '../pages/AgentPage'
 
-const base = { id: 'H-13', block: 'B', temp_f: 55, co_ppm: 0, power_on: false, heating: false, online: true,
+const base = { trend: 'falling', slope_f_per_h: -7.5, id: 'H-13', block: 'B', temp_f: 55, co_ppm: 0, power_on: false, heating: false, online: true,
   k_est: 0.14, status: 'warning', risk: 90, call_status: 'none', outcome: 'none', hours_to_50: 1.2, hours_to_60: 0, medical_needs: ['oxygen'] }
 
 describe('story', () => {
@@ -30,7 +36,7 @@ describe('story', () => {
       { type: 'threshold', home_id: 'H-13' },
       { type: 'house_power_cut', home_id: 'H-13' },
     ]
-    const r = reachedNow({ ...base, status: 'cooling', k_est: null }, 1, events)
+    const r = reachedNow({ ...base, status: 'cooling' }, 1, events)
     expect([...r]).toEqual(['cut', 'cooling'])
   })
   it('helped and heated homes leave the priority list', () => {
@@ -63,5 +69,75 @@ describe('pages', () => {
     expect(sim.house).toHaveBeenCalledWith('cut_house', 'H-27')
     fireEvent.click(screen.getByText(/Reset \(all homes warm\)/))
     expect(sim.reset).toHaveBeenCalledWith(0)
+  })
+})
+
+import { IncomingCall } from '../components/CallPanel'
+
+describe('incoming call', () => {
+  const ringing = { home_id: 'H-13', source: 'live', phase: 'ringing', transcript: [] }
+  it('shows Answer and Decline while ringing', () => {
+    const voice = { status: 'idle', ended: false, error: '', answer: vi.fn(), decline: vi.fn(), hangUp: vi.fn(), liveLines: [] }
+    render(<IncomingCall call={ringing} voice={voice} />)
+    fireEvent.click(screen.getByText('Answer'))
+    fireEvent.click(screen.getByText('Decline'))
+    expect(voice.answer).toHaveBeenCalled()
+    expect(voice.decline).toHaveBeenCalled()
+  })
+  it('shows Hang up during the call and nothing for scripted calls', () => {
+    const voice = { status: 'talking', ended: false, error: '', answer: vi.fn(), decline: vi.fn(), hangUp: vi.fn(), liveLines: [] }
+    const { rerender } = render(<IncomingCall call={{ ...ringing, phase: 'in_call' }} voice={voice} />)
+    fireEvent.click(screen.getByText('Hang up'))
+    expect(voice.hangUp).toHaveBeenCalled()
+    rerender(<IncomingCall call={{ ...ringing, source: 'scripted' }} voice={voice} />)
+    expect(screen.queryByText('Hang up')).toBeNull()
+  })
+})
+
+import CallsBoard from '../components/CallsBoard'
+
+describe('calls board', () => {
+  it('shows one card per called house', () => {
+    const onSelect = vi.fn()
+    render(<CallsBoard selectedId={null} onSelect={onSelect} calls={[
+      { home_id: 'H-13', phase: 'ringing', source: 'live', outcome: 'none' },
+      { home_id: 'H-14', phase: 'done', source: 'scripted', outcome: 'medical' },
+      { home_id: 'H-16', phase: 'no_answer', source: 'scripted', outcome: 'unreachable' },
+    ]} />)
+    expect(screen.getByText('1 in progress · 3 houses called')).toBeInTheDocument()
+    expect(screen.getByText('Medical')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('H-16'))
+    expect(onSelect).toHaveBeenCalledWith('H-16')
+  })
+})
+
+describe('AI agent page', () => {
+  it('shows who the agent is calling right now and by area', () => {
+    render(<AgentPage data={data} voice={null} />)
+    expect(screen.getByText('Calling right now', { selector: '.tile-label' }).previousSibling.textContent).toBe('2')
+    expect(screen.getByText('Areas being called').previousSibling.textContent).toBe('2')
+    expect(screen.getByText('Resident: it is freezing')).toBeInTheDocument()
+    expect(screen.getByText('Medical')).toBeInTheDocument()
+  })
+})
+
+import { renderHook } from '@testing-library/react'
+import { useStory } from '../hooks/useStory'
+
+describe('story lifecycle', () => {
+  it('clears after it finishes and starts again on the next incident', () => {
+    vi.useFakeTimers()
+    const done = { ...base, power_on: true, heating: true, status: 'heated', outcome: 'helped', trend: 'heating', call_status: 'done' }
+    const { result, rerender } = renderHook(({ h }) => useStory(h, null, [], 'r1'), { initialProps: { h: done } })
+    expect(result.current.every((s) => s.state === 'done')).toBe(true)
+    vi.advanceTimersByTime(13000)
+    rerender({ h: { ...done } })
+    expect(result.current.every((s) => s.state === 'todo')).toBe(true)
+    rerender({ h: { ...done } })
+    expect(result.current.every((s) => s.state === 'todo')).toBe(true)      // stays clear
+    rerender({ h: { ...base, power_on: false, heating: false, status: 'cooling', outcome: 'none', call_status: 'none' } })
+    expect(result.current[0].state).toBe('done')                          // new power cut
+    expect(result.current[5].state).toBe('todo')                          // help not pre-ticked
+    vi.useRealTimers()
   })
 })

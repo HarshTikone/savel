@@ -1,3 +1,4 @@
+import { Phone, PhoneOff } from 'lucide-react'
 import { PHASES } from '../data/contract'
 import { simClock } from '../lib/format'
 
@@ -42,29 +43,31 @@ function Stepper({ phase }) {
   )
 }
 
-const VOICE_LABEL = {
-  ready: 'AI calls on: the voice agent answers automatically',
-  connecting: 'Connecting voice agent…',
-  talking: 'Voice agent on the line, speak as the resident',
-  error: 'Voice error',
-}
-
-function VoiceToggle({ voice }) {
-  if (!voice) return null
-  if (!voice.enabled) {
+export function IncomingCall({ call, voice }) {
+  if (!voice || !call || call.source !== 'live') return null
+  if (call.phase === 'ringing' && voice.status !== 'talking' && voice.status !== 'connecting' && !voice.ended) {
     return (
-      <div className="voice-toggle">
-        <button type="button" onClick={voice.enable}>Enable AI calls</button>
-        {voice.error && <span className="muted"> {voice.error}</span>}
+      <div className="incoming" role="group" aria-label={`Incoming check-in call for ${call.home_id}`}>
+        <div className="incoming-text"><span className="ring-dot" /> SAVEL is calling the resident at {call.home_id}</div>
+        <div className="incoming-actions">
+          <button type="button" className="btn-answer" onClick={voice.answer}><Phone size={18} /> Answer</button>
+          <button type="button" className="btn-decline" onClick={voice.decline}><PhoneOff size={18} /> Decline</button>
+        </div>
+        {voice.error && <p className="error">{voice.error}</p>}
       </div>
     )
   }
-  return (
-    <div className="voice-toggle">
-      <span className="muted">{VOICE_LABEL[voice.status] || VOICE_LABEL.ready}{voice.error ? `: ${voice.error}` : ''}</span>{' '}
-      <button type="button" onClick={voice.disable}>Turn off</button>
-    </div>
-  )
+  if (voice.status === 'connecting') return <p className="muted">Connecting the AI agent…</p>
+  if (voice.status === 'talking') {
+    return (
+      <div className="incoming talking">
+        <div className="incoming-text"><span className="ring-dot on" /> On the call: speak as the resident</div>
+        <button type="button" className="btn-decline" onClick={voice.hangUp}><PhoneOff size={16} /> Hang up</button>
+      </div>
+    )
+  }
+  if (voice.status === 'error') return <p className="error">Voice error: {voice.error}</p>
+  return null
 }
 
 export default function CallPanel({ call, events = [], highlight, voice }) {
@@ -72,7 +75,6 @@ export default function CallPanel({ call, events = [], highlight, voice }) {
     const past = events.find((e) => e && e.type === 'call_result')
     return (
       <div className={`call${highlight ? ' highlight' : ''}`}>
-        <VoiceToggle voice={voice} />
         <p className="muted">No call in progress</p>
         {past && <p className="muted">Last call (past): {simClock(past.t)} · {past.text}</p>}
       </div>
@@ -96,7 +98,6 @@ export default function CallPanel({ call, events = [], highlight, voice }) {
         </span>
         <span className="muted">Language: {call.language || 'Unavailable'}</span>
       </div>
-      <VoiceToggle voice={voice} />
       <Stepper phase={shownPhase} />
       {lines.length === 0 ? (
         <p className="muted">Waiting for transcript…</p>

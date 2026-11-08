@@ -42,7 +42,7 @@ export function reachedNow(home, rank, events) {
   events = eventsSinceCut(events, id)
   const r = new Set()
   if (home.power_on === false || hasEvent(events, 'house_power_cut', id)) r.add('cut')
-  if (!home.heating && ['cooling', 'warning', 'critical'].includes(home.status)) r.add('cooling')
+  if (!home.heating && (home.trend === 'falling' || ['warning', 'critical'].includes(home.status))) r.add('cooling')
   if (['warning', 'critical'].includes(home.status) || hasEvent(events, 'threshold', id)) r.add('threshold')
   if (['ringing', 'in_call', 'done', 'no_answer', 'unreachable'].includes(home.call_status) || hasEvent(events, 'call_started', id)) r.add('call')
   if (rank === 1 && ['warning', 'critical'].includes(home.status)) r.add('ranked')
@@ -55,8 +55,8 @@ export function stepDetail(key, home, rank) {
   if (!home) return ''
   switch (key) {
     case 'cut': return home.power_on === false ? 'No power at the house' : 'Power is back'
-    case 'cooling': return home.k_est ? `Learned cooling rate · ${fmtTemp(home.temp_f)}` : `Learning this house · ${fmtTemp(home.temp_f)}`
-    case 'threshold': return home.hours_to_50 != null ? `50°F in ${stormDuration(home.hours_to_50)}` : fmtTemp(home.temp_f)
+    case 'cooling': return home.slope_f_per_h != null ? `Falling ${Math.abs(home.slope_f_per_h).toFixed(1)}°F/h · ${fmtTemp(home.temp_f)}` : fmtTemp(home.temp_f)
+    case 'threshold': return home.status === 'critical' ? `Below 50°F · ${fmtTemp(home.temp_f)}` : home.hours_to_50 != null ? `Below 60°F · 50°F in ${stormDuration(home.hours_to_50)}` : `Below 60°F · ${fmtTemp(home.temp_f)}`
     case 'call': return { none: 'Waiting', queued: 'Queued', ringing: 'Ringing', in_call: 'On the call', done: 'Answered', no_answer: 'No answer', unreachable: 'Unreachable' }[home.call_status] || ''
     case 'ranked': return rank ? `Priority #${rank}` : ''
     case 'help': return home.outcome === 'helped' ? 'Responder on site, power restored' : ''

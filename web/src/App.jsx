@@ -1,15 +1,21 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useDashboardData } from './hooks/useDashboardData'
-import { useAutoAnswer } from './hooks/useAutoAnswer'
+import { useVoiceCall } from './hooks/useVoiceCall'
 import { useTrends } from './hooks/useTrends'
 import { useSim } from './hooks/useSim'
 import TopBar from './components/TopBar'
 import ResponderPage from './pages/ResponderPage'
 import SimulationPage from './pages/SimulationPage'
+import AgentPage from './pages/AgentPage'
 import { helpHome } from './services/api'
 
 function usePage() {
-  const read = () => (window.location.hash.startsWith('#/sim') ? 'sim' : 'responder')
+  const read = () => {
+    const h = window.location.hash
+    if (h.startsWith('#/sim')) return 'sim'
+    if (h.startsWith('#/agent')) return 'agent'
+    return 'responder'
+  }
   const [page, setPage] = useState(read)
   useEffect(() => {
     const on = () => setPage(read())
@@ -23,7 +29,7 @@ export default function App() {
   const page = usePage()
   const data = useDashboardData()
   const callHomeRec = data.call ? data.homes.find((h) => h.id === data.call.home_id) : null
-  const voice = useAutoAnswer(data.call, callHomeRec, page === 'responder')
+  const voice = useVoiceCall(data.call, callHomeRec)
   const trends = useTrends(data.runId)
   const sim = useSim(data.refresh)
   const [helpPending, setHelpPending] = useState({})
@@ -43,6 +49,8 @@ export default function App() {
       <TopBar page={page} state={data.state} connection={data.connection} />
       {page === 'sim' ? (
         <SimulationPage data={data} sim={sim} onHelp={onHelp} helpPending={helpPending} />
+      ) : page === 'agent' ? (
+        <AgentPage data={data} voice={voice} />
       ) : (
         <ResponderPage data={data} voice={voice} trends={trends} onHelp={onHelp} helpPending={helpPending} />
       )}

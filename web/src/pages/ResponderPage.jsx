@@ -5,10 +5,12 @@ import BlockGridMap from '../components/BlockGridMap'
 import PriorityList from '../components/PriorityList'
 import HouseCard from '../components/HouseCard'
 import HouseStory from '../components/HouseStory'
-import CallPanel from '../components/CallPanel'
+import CallPanel, { IncomingCall } from '../components/CallPanel'
 import TemperatureChart from '../components/TemperatureChart'
 import ActivityFeed from '../components/ActivityFeed'
 import TrendStrip from '../components/TrendStrip'
+import CallsBoard from '../components/CallsBoard'
+import { useCalls } from '../hooks/useCalls'
 import { useSeries } from '../hooks/useSeries'
 import { useStory } from '../hooks/useStory'
 import { rankOf, rankedHomes } from '../lib/story'
@@ -77,21 +79,25 @@ export default function ResponderPage({ data, voice, trends, onHelp, helpPending
   const selectedId = picked || focusId || (rankedHomes(homes)[0] || {}).id || null
   const home = homes.find((h) => h.id === selectedId)
   const rank = home ? rankOf(homes, home.id) : null
-  const focusHome = homes.find((h) => h.id === focusId)
-  const focusRank = focusHome ? rankOf(homes, focusId) : null
-  const steps = useStory(focusHome, focusRank, events, runId)
+  // The timeline follows the house on screen.
+  const steps = useStory(home, rank, events, runId)
   const series = useSeries(selectedId, runId)
+  const calls = useCalls(runId)
   const callForHome = call && home && call.home_id === home.id ? call : null
 
   return (
     <div className="page responder">
-      {focusHome && (
+      <div className="incoming-slot"><IncomingCall call={call} voice={voice} /></div>
+      {home && (
         <section className="card story-card" aria-label="House story">
-          <div className="story-title">Following <button type="button" className="linklike strong" onClick={() => setPicked(focusId)}>{focusId}</button></div>
-          <HouseStory steps={steps} home={focusHome} rank={focusRank} />
+          <div className="story-title">Timeline · <span className="strong-id">{home.id}</span>
+            {steps.every((s) => s.state === 'todo') && <span className="muted"> · no incident right now</span>}
+          </div>
+          <HouseStory steps={steps} home={home} rank={rank} />
         </section>
       )}
       <Tiles homes={homes} state={state} />
+      <CallsBoard calls={calls} selectedId={selectedId} onSelect={setPicked} />
       <TrendStrip trends={trends} selectedId={selectedId} />
       <div className="r-grid">
         <section className="card" aria-label="Priority list">

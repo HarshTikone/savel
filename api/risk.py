@@ -4,8 +4,9 @@ Gemini never touches this. A call only shifts the score through its mapped outco
 """
 
 CAP = 100
-TIME_MAX = 50           # points from the hours-to-50F countdown
-TIME_WINDOW_H = 8.0     # countdown beyond this many storm hours adds nothing
+DEPTH_MAX = 30          # points for how far below 60F the home already is
+TIME_MAX = 25           # points from the hours-to-50F countdown
+TIME_WINDOW_H = 4.0     # countdown beyond this many storm hours adds nothing
 LEAVING_SCORE = 5       # resident is on their way to safety
 
 AGE_POINTS = {"75+": 15, "65-74": 9}
@@ -33,43 +34,38 @@ def risk_score(home: dict, call: dict | None) -> int:
 
     temp = home.get("temp_f")
     co = home.get("co_ppm") or 0.0
-    heating = bool(home.get("heating"))
     h50 = home.get("hours_to_50")
+    status = home.get("status")
+
+    # Gate: a home is only ranked once it is in danger (below 60F and falling, below 50F, or CO).
+    # A call result alone never puts a home on the list.
+    if status not in ("warning", "critical") and co < 35:
+        return 0
 
     score = 0.0
-
-    # Time pressure: the sooner the home hits 50F, the more points.
-    if h50 is not None:
+    if temp is not None:                        # how cold it already is: 0 at 60F, 30 at 40F
+        score += DEPTH_MAX * _clamp((60 - temp) / 20, 0.0, 1.0)
+    if h50 is not None:                         # how soon it reaches 50F
         score += TIME_MAX * _clamp(1 - h50 / TIME_WINDOW_H, 0.0, 1.0)
-
-    # Current temperature band.
-    if temp is not None:
-        if temp < 50:
-            score += 20
-        elif temp < 60:
-            score += 10
-
     if co >= 35:
         score += 30
+    score += AGE_POINTS.get(home.get("age_band") or "", 0)
+    needs = {n for n in (home.get("medical_needs") or []) if n}
+    score += min(MEDICAL_CAP, sum(MEDICAL_POINTS.get(n, 0) for n in needs))
 
-    # Vulnerability only matters while the home is actually in trouble.
-    safe_and_warm = heating and co < 35 and (temp is None or temp >= 60)
-    if not safe_and_warm:
-        score += AGE_POINTS.get(home.get("age_band") or "", 0)
-        needs = {n for n in (home.get("medical_needs") or []) if n}
-        score += min(MEDICAL_CAP, sum(MEDICAL_POINTS.get(n, 0) for n in needs))
-
-    # What the check-in call found.
+    # What the check-in call found (Gemini's reading of the transcript): reorders homes in danger.
     if outcome == "needs_help":
         score += 15
     elif outcome == "medical":
         score += 20
+    elif outcome == "ok":
+        score -= 15                             # resident says they are fine for now
     if outcome == "unreachable" or call_status == "unreachable":
-        score += 20
+        score += 35                             # nobody answered: assume the worst, send help
     elif call_status == "no_answer":
         score += 10
 
     if not home.get("online", True):
         score += 5
 
-    return int(min(CAP, round(score)))
+    return int(max(1, min(CAP, round(score))))   # in danger: always listed, even after an "ok" call

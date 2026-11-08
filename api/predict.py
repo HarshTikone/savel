@@ -21,20 +21,20 @@ def estimate(t_last, t_out, k, hours_silent):
 RECOVERED_F = 62.0
 
 
-def status(temp_f, co_ppm, heating, h50, outcome):
+def status(temp_f, co_ppm, heating, h50, outcome, declining=True):
+    """Thresholds use the measured temperature. A home is only warning/critical once it is
+    unheated AND its temperature is confirmed falling (or already below 50F)."""
     if co_ppm >= 35:
         return "critical"
     if outcome == "leaving":
         return "leaving"
-    if heating and temp_f < RECOVERED_F:
-        return "recovering"          # power is back: warming up, not yet comfortable
-    if temp_f < 50 or (h50 is not None and h50 < 1.5):
+    if heating:
+        return "recovering" if temp_f < RECOVERED_F else "heated"
+    if temp_f < 50:
         return "critical"
-    if temp_f < 60 or (h50 is not None and h50 < 4):
+    if temp_f < 60 and declining:
         return "warning"
-    if not heating:
-        return "cooling"
-    return "heated"
+    return "cooling"
 
 
 def predict_curve(t_now, t_out, k, heating, hours=6, step_min=15):

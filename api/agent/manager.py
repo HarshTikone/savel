@@ -18,13 +18,14 @@ from api.state import state
 log = logging.getLogger("api.agent.manager")
 
 SCRIPTED_SECONDS = float(os.getenv("SCRIPTED_CALL_SECONDS", "8"))
-LIVE_WAIT_S = float(os.getenv("LIVE_CALL_WAIT_S", "40"))       # how long a live call may ring before the scripted fallback
+LIVE_WAIT_S = float(os.getenv("LIVE_CALL_WAIT_S", "60"))       # how long a live call rings before it counts as no answer
 LIVE_TALK_S = float(os.getenv("LIVE_CALL_TALK_S", "300"))      # once answered: conversation + webhook delay
 RETRY_STORM_MIN = float(os.getenv("CALL_RETRY_STORM_MINUTES", "20"))
-LIVE_FALLBACK = os.getenv("LIVE_FALLBACK", "scripted")
+LIVE_FALLBACK = os.getenv("LIVE_FALLBACK", "none")   # "none": an unanswered live call is not retried by a script
 LIVE_HOMES = {h.strip() for h in os.getenv("LIVE_HOMES", "H-13").split(",") if h.strip()}
 
 _current: dict | None = None
+_views: dict[str, dict] = {}             # home_id -> latest call view (for the calls board)
 last_extracted: dict[str, dict] = {}     # home_id -> {"run_id", "source", "extracted"}
 _active: dict[str, str] = {}              # home_id -> run_id of the flow in progress
 _flows: dict[str, "asyncio.Task"] = {}
@@ -77,6 +78,7 @@ def _start_view(home: dict, run_id: str, source: str, phase: str) -> dict:
                  and _current["phase"] in ("ringing", "in_call", "extracting"))
     if not (source == "scripted" and live_busy):
         _current = view
+    _views[home["id"]] = view
     return view
 
 
@@ -84,6 +86,21 @@ def current_view() -> dict | None:
     if not _current or _stale(_current["run_id"]):
         return None
     return {k: v for k, v in _current.items() if k != "run_id"}
+
+
+def all_views() -> list[dict]:
+    """Every call in this run, active ones first, for the calls board."""
+    order = {"ringing": 0, "in_call": 0, "extracting": 0, "done": 1, "no_answer": 1}
+    out = []
+    for hid, v in _views.items():
+        if _stale(v["run_id"]):
+            continue
+        c = state.calls.get(hid, {})
+        out.append({"home_id": hid, "phase": v["phase"], "source": v["source"],
+                    "last": v["transcript"][-1] if v["transcript"] else "",
+                    "call_status": c.get("call_status", "none"), "outcome": c.get("outcome", "none")})
+    out.sort(key=lambda x: (order.get(x["phase"], 2), x["home_id"]))
+    return out
 
 
 def ui_extracted(e: dict | None) -> dict | None:
@@ -187,6 +204,18 @@ def resolve(home_id: str) -> None:
     _set(home_id, "done", "helped")
 
 
+DECLINED = object()   # sentinel result for a call the presenter declined
+
+
+def mark_live_declined(home_id: str) -> bool:
+    """The resident did not pick up (presenter pressed Decline)."""
+    fut = _live_waiters.get(home_id)
+    if not fut or fut.done():
+        return False
+    fut.set_result(DECLINED)
+    return True
+
+
 def mark_live_answered(home_id: str) -> bool:
     """The dashboard connected the voice agent for a ringing live call: stop the ring timeout."""
     if home_id not in _live_waiters:
@@ -202,7 +231,7 @@ async def _live_attempt(home: dict, run_id: str, started) -> bool | None:
     """True answered, False no answer, None = fell through to caller's fallback."""
     hid = home["id"]
     v = _start_view(home, run_id, "live", "ringing")
-    v["transcript"].append("SAVEL: Live voice call is open in the browser. Waiting for the resident to pick up.")
+    v["transcript"].append("SAVEL: Calling the resident. Waiting for them to pick up.")
     _set(hid, "ringing")
     state.add_event("call_started", hid, f"Live voice check-in call to {hid}", "info")
     fut = asyncio.get_running_loop().create_future()
@@ -226,9 +255,12 @@ async def _live_attempt(home: dict, run_id: str, started) -> bool | None:
         await set_live_call(False)
     if _stale(run_id):
         return True
-    if lines is None:
-        v["phase"] = "no_answer"      # live view is over; the scripted fallback may take the panel
-        return None
+    if lines is None or lines is DECLINED:
+        v["phase"] = "no_answer"
+        v["transcript"].append("SAVEL: No answer." if lines is None else "SAVEL: The call was not picked up.")
+        if LIVE_FALLBACK == "scripted" and lines is None:
+            return None               # optional: let a scripted call try instead
+        return False
     if not _resident_spoke(lines):
         _set(hid, "no_answer")
         v["phase"] = "no_answer"
@@ -259,9 +291,16 @@ async def _run(home_id: str, reason: str, run_id: str) -> None:
             answered = None
             if attempt == 1 and home_id in LIVE_HOMES:
                 answered = await _live_attempt(home, run_id, started)
-                if answered is None and LIVE_FALLBACK != "scripted":
-                    _set(home_id, "no_answer")
-                    answered = False
+                if answered is False:
+                    # Phones can be dead or the resident can't reach one: no script, no retry.
+                    # The home stays at the top of the list until help is delivered.
+                    if _stale(run_id):
+                        return
+                    _set(home_id, "unreachable", "unreachable")
+                    state.add_event("call_result", home_id,
+                                    f"{home_id}: resident did not answer; send help", "critical")
+                    await _persist(run_id, home_id, first_sim, "unreachable", "live", [], None, "unreachable")
+                    return
             if answered is None:
                 answered = await _scripted_attempt(home, run_id, attempt, started)
             if answered:

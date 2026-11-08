@@ -8,8 +8,8 @@ from fastapi import HTTPException
 from api.state import state
 
 SIM_URL = os.getenv("SIM_URL", "http://localhost:8001").rstrip("/")
-SPEEDUP = int(os.getenv("SPEEDUP", "150"))
-LIVE_CALL_SPEEDUP = int(os.getenv("LIVE_CALL_SPEEDUP", "30"))
+SPEEDUP = int(os.getenv("SPEEDUP", "60"))
+LIVE_CALL_SPEEDUP = int(os.getenv("LIVE_CALL_SPEEDUP", "60"))   # same as the demo speed: the house keeps cooling during the call
 log = logging.getLogger("api.simctl")
 
 

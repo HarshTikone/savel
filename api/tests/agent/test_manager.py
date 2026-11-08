@@ -115,8 +115,9 @@ async def test_live_call_via_webhook(setup, monkeypatch):
     assert m.current_view()["source"] == "live"
 
 
-async def test_live_timeout_falls_back_to_scripted(setup, monkeypatch):
+async def test_live_timeout_falls_back_to_scripted_when_enabled(setup, monkeypatch):
     monkeypatch.setattr(m, "LIVE_HOMES", {"H-13"})
+    monkeypatch.setattr(m, "LIVE_FALLBACK", "scripted")
     monkeypatch.setattr(m, "LIVE_WAIT_S", 0.1)
     state.homes_cache = [mk("H-13")]
     await m.trigger_call("H-13", "warning")
@@ -153,13 +154,32 @@ async def test_live_silent_call_counts_as_no_answer(monkeypatch):
             break
         await asyncio.sleep(0.02)
     await m.handle_live_transcript("H-13", ["SAVEL: Hello?"])
-    for _ in range(100):
-        if state.calls["H-13"]["call_status"] == "no_answer":
-            break
-        await asyncio.sleep(0.05)
-    assert state.calls["H-13"]["call_status"] == "no_answer"
-    state.run_id = "other"   # abandon the retry wait
     await settle("H-13")
+    assert state.calls["H-13"] == {"call_status": "unreachable", "outcome": "unreachable"}
+
+
+async def test_declined_call_is_unreachable_with_no_script(setup, monkeypatch):
+    monkeypatch.setattr(m, "LIVE_HOMES", {"H-13"})
+    state.homes_cache = [mk("H-13")]
+    await m.trigger_call("H-13", "warning")
+    for _ in range(50):
+        if "H-13" in m._live_waiters:
+            break
+        await asyncio.sleep(0.02)
+    assert m.mark_live_declined("H-13")
+    await settle("H-13")
+    assert state.calls["H-13"] == {"call_status": "unreachable", "outcome": "unreachable"}
+    assert m.current_view()["source"] == "live"          # no scripted call took over
+    assert any(e["type"] == "call_result" and "send help" in e["text"] for e in state.events)
+
+
+async def test_unanswered_ring_is_unreachable(setup, monkeypatch):
+    monkeypatch.setattr(m, "LIVE_HOMES", {"H-13"})
+    monkeypatch.setattr(m, "LIVE_WAIT_S", 0.1)
+    state.homes_cache = [mk("H-13")]
+    await m.trigger_call("H-13", "warning")
+    await settle("H-13")
+    assert state.calls["H-13"]["outcome"] == "unreachable"
 
 
 async def test_presenter_started_call_without_trigger():
@@ -232,3 +252,14 @@ async def test_stale_flow_from_previous_run_does_not_block_new_run(setup, monkey
     await m.handle_live_transcript("H-13", ["SAVEL: hi", "Resident: no heat, need help"])
     await settle("H-13")
     assert state.calls["H-13"]["outcome"] == "needs_help" and m.current_view()["source"] == "live"
+
+
+async def test_calls_board_lists_every_call(setup):
+    state.homes_cache = [mk("H-02"), mk("H-03")]
+    await m.trigger_call("H-02", "warning")
+    await m.trigger_call("H-03", "warning")
+    await settle("H-02")
+    await settle("H-03")
+    board = m.all_views()
+    assert {b["home_id"] for b in board} >= {"H-02", "H-03"}
+    assert all(b["phase"] in ("done", "no_answer") for b in board if b["home_id"] in ("H-02", "H-03"))

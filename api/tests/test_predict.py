@@ -19,8 +19,8 @@ def test_status_precedence():
     assert status(66, 40, False, None, "leaving") == "critical"
     assert status(45, 0, False, 0.0, "leaving") == "leaving"
     assert status(45, 0, False, 0.0, "none") == "critical"
-    assert status(62, 0, False, 1.2, "none") == "critical"
-    assert status(62, 0, False, 3.5, "none") == "warning"
+    assert status(62, 0, False, 1.2, "none") == "cooling"     # thresholds use the measured temperature
+    assert status(58, 0, False, 3.5, "none") == "warning"
     assert status(58, 0, True, None, "none") == "recovering"  # power back, still warming
     assert status(65, 0, False, 6, "none") == "cooling"
     assert status(68, 0, True, None, "none") == "heated"

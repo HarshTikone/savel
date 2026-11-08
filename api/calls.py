@@ -22,10 +22,22 @@ async def calls_current():
     return current_view()
 
 
+@router.get("/api/calls")
+async def calls_all():
+    return manager.all_views()
+
+
 @router.post("/api/calls/live/answered", status_code=204)
 async def calls_live_answered(body: dict):
     """The dashboard connected the voice agent to a ringing live call."""
     manager.mark_live_answered(str(body.get("home_id", "")))
+    return Response(status_code=204)
+
+
+@router.post("/api/calls/live/declined", status_code=204)
+async def calls_live_declined(body: dict):
+    """The presenter declined a ringing live call (the resident did not pick up)."""
+    manager.mark_live_declined(str(body.get("home_id", "")))
     return Response(status_code=204)
 
 

@@ -24,6 +24,11 @@ export function rankedHomes(homes) {
     .sort((a, b) => b.risk - a.risk || a.temp_f - b.temp_f || (a.hours_to_50 ?? 99) - (b.hours_to_50 ?? 99) || a.id.localeCompare(b.id))
 }
 
+// The resident answered and is leaving for somewhere warm: this incident is closed for the house.
+export function isLeaving(home) {
+  return !!home && (home.status === 'leaving' || home.call_result === 'leaving' || home.outcome === 'leaving')
+}
+
 function hasEvent(events, type, id) {
   return (events || []).some((e) => e && e.type === type && e.home_id === id)
 }
@@ -108,7 +113,8 @@ export function callSettled(home, runId, now = Date.now()) {
   const key = `${runId}|${home.id}`
   const firstLook = !observed.has(key)
   observed.add(key)
-  if (home.outcome !== 'helped' || home.status !== 'heated') { settledSince.delete(key); return false }
+  const closed = (home.outcome === 'helped' && home.status === 'heated') || (isLeaving(home) && !callInProgress(home))
+  if (!closed) { settledSince.delete(key); return false }
   // Already settled when the page opened: gone at once. Settled while watching: stays 12 s, like the timeline.
   if (!settledSince.has(key)) settledSince.set(key, firstLook ? now - SETTLE_MS - 1 : now)
   return now - settledSince.get(key) > SETTLE_MS

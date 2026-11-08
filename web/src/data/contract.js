@@ -1,4 +1,4 @@
-import { Flame, Thermometer, Snowflake, AlertTriangle, CheckCircle2, Info } from 'lucide-react'
+import { Flame, Thermometer, Snowflake, AlertTriangle, CheckCircle2, Info, Sunrise } from 'lucide-react'
 
 export * from './enums.js'
 
@@ -8,6 +8,7 @@ export const STATUS_META = {
   warning: { label: 'Warning', colorVar: '--status-warning', icon: Snowflake },
   critical: { label: 'Critical', colorVar: '--status-critical', icon: AlertTriangle },
   leaving: { label: 'Safe, leaving', colorVar: '--status-leaving', icon: CheckCircle2 },
+  recovering: { label: 'Recovering', colorVar: '--status-recovering', icon: Sunrise },
 }
 
 export const CALL_STATUS_LABEL = {
@@ -27,6 +28,7 @@ export const OUTCOME_LABEL = {
   medical: 'Medical',
   leaving: 'Safe, leaving',
   unreachable: 'Unreachable',
+  helped: 'Help delivered',
 }
 
 export const SEVERITY_META = {

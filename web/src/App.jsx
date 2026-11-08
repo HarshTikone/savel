@@ -8,6 +8,8 @@ import ResponderPage from './pages/ResponderPage'
 import SimulationPage from './pages/SimulationPage'
 import AgentPage from './pages/AgentPage'
 import { helpHome } from './services/api'
+import { IncomingCalls } from './components/CallPanel'
+import { useRingtone } from './hooks/useRingtone'
 
 function usePage() {
   const read = () => {
@@ -34,6 +36,8 @@ export default function App() {
   const trends = useTrends(data.runId)
   const sim = useSim(data.refresh)
   const [helpPending, setHelpPending] = useState({})
+  const anyRinging = calls.some((c) => c.source === 'live' && c.phase === 'ringing' && c.home_id !== voice.activeHome)
+  useRingtone(anyRinging)
 
   const onHelp = useCallback(async (id) => {
     setHelpPending((p) => ({ ...p, [id]: true }))
@@ -48,6 +52,10 @@ export default function App() {
   return (
     <div className="app">
       <TopBar page={page} state={data.state} connection={data.connection} />
+      {/* Incoming calls float above every page, so a ringing house is never missed. */}
+      <div className="call-dock" aria-live="polite">
+        <IncomingCalls calls={calls} voice={voice} homesById={homesById} />
+      </div>
       {page === 'sim' ? (
         <SimulationPage data={data} sim={sim} calls={calls} onHelp={onHelp} helpPending={helpPending} />
       ) : page === 'agent' ? (

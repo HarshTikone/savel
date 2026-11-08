@@ -1,6 +1,5 @@
 import { PhoneCall, Phone, PhoneOff, CheckCircle2, HeartPulse, Bot, Mic, MapPin, Activity } from 'lucide-react'
 import { OUTCOME_LABEL } from '../data/contract'
-import { IncomingCalls } from '../components/CallPanel'
 import StatusPill from '../components/StatusPill'
 import { temp } from '../lib/format'
 
@@ -41,7 +40,6 @@ export default function AgentPage({ data, voice, calls = [], homesById = {} }) {
 
   return (
     <div className="page agent">
-      <IncomingCalls calls={calls} voice={voice} homesById={homesById} />
       <ul className="tiles six">
         <Kpi icon={Activity} label="Calling right now" value={active.length} tone={active.length ? 'live' : ''} />
         <Kpi icon={MapPin} label="Areas being called" value={areasNow} />

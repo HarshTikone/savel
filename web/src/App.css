@@ -288,3 +288,13 @@ details summary { cursor: pointer; color: var(--muted); font-size: 12px; }
 
 .story-step.skipped .story-dot { background: var(--surface-2); border-color: var(--line); color: var(--muted); }
 .story-step.current .story-detail { color: var(--accent); font-weight: 600; }
+
+/* ---------- floating incoming-call dock (every page) ---------- */
+.call-dock { position: fixed; top: 72px; right: 16px; z-index: 2000; width: min(400px, calc(100vw - 32px)); max-height: calc(100vh - 90px); overflow-y: auto; pointer-events: none; }
+.call-dock:empty { display: none; }
+.call-dock > * { pointer-events: auto; }
+.call-dock .ring-grid { grid-template-columns: 1fr; }
+.call-dock .incoming { background: linear-gradient(90deg, rgba(30, 41, 75, .97), rgba(22, 30, 52, .97)); box-shadow: 0 14px 40px rgba(0, 0, 0, .45), 0 0 0 1px rgba(124,156,255,.5); backdrop-filter: blur(8px); animation: slidein .25s ease-out; }
+.call-dock .incoming.talking { background: linear-gradient(90deg, rgba(20, 60, 40, .97), rgba(18, 40, 30, .97)); box-shadow: 0 14px 40px rgba(0, 0, 0, .45), 0 0 0 1px rgba(34,197,94,.55); }
+@keyframes slidein { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (max-width: 800px) { .call-dock { top: auto; bottom: 12px; right: 12px; left: 12px; width: auto; max-height: 50vh; } }

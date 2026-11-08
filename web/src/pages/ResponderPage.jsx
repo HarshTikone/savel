@@ -5,7 +5,7 @@ import BlockGridMap from '../components/BlockGridMap'
 import PriorityList from '../components/PriorityList'
 import HouseCard from '../components/HouseCard'
 import HouseStory from '../components/HouseStory'
-import CallPanel, { IncomingCalls } from '../components/CallPanel'
+import CallPanel from '../components/CallPanel'
 import TemperatureChart from '../components/TemperatureChart'
 import ActivityFeed from '../components/ActivityFeed'
 import TrendStrip from '../components/TrendStrip'
@@ -86,7 +86,6 @@ export default function ResponderPage({ data, voice, calls = [], homesById = {},
 
   return (
     <div className="page responder">
-      <IncomingCalls calls={calls} voice={voice} homesById={homesById} />
       {home && (
         <section className="card story-card" aria-label="House story">
           <div className="story-title">Timeline · <span className="strong-id">{home.id}</span>

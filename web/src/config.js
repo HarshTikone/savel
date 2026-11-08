@@ -9,5 +9,5 @@ export const SPEED_PRESETS = [
 export const VENT_HOME = 'H-27'
 export const QUEUE_SIZE = 10
 export const DATA_MODE = import.meta.env.VITE_DATA_MODE || 'live'
-export const ELEVEN_AGENT_ID = import.meta.env.VITE_ELEVENLABS_AGENT_ID || 'agent_8601m6w0bfgeedyvfht3kshrx6p3'
+export const ELEVEN_AGENT_ID = import.meta.env.VITE_ELEVENLABS_AGENT_ID || 'agent_5001m6xdg56afh2tt2d4e7tn7463'
 export const ELEVEN_CLIENT_URL = 'https://esm.sh/@elevenlabs/client@1.35.0'

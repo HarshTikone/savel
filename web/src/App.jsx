@@ -23,7 +23,7 @@ export default function App() {
   const page = usePage()
   const data = useDashboardData()
   const callHomeRec = data.call ? data.homes.find((h) => h.id === data.call.home_id) : null
-  const voice = useAutoAnswer(data.call, callHomeRec)
+  const voice = useAutoAnswer(data.call, callHomeRec, page === 'responder')
   const trends = useTrends(data.runId)
   const sim = useSim(data.refresh)
   const [helpPending, setHelpPending] = useState({})

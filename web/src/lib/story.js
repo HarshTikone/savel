@@ -28,17 +28,25 @@ function hasEvent(events, type, id) {
   return (events || []).some((e) => e && e.type === type && e.home_id === id)
 }
 
+// Only events since this house's latest power cut count (events are newest first).
+export function eventsSinceCut(events, id) {
+  const list = events || []
+  const i = list.findIndex((e) => e && e.type === 'house_power_cut' && e.home_id === id)
+  return i < 0 ? list : list.slice(0, i + 1)
+}
+
 // Steps reached right now (the hook keeps them sticky).
 export function reachedNow(home, rank, events) {
   if (!home) return new Set()
   const id = home.id
+  events = eventsSinceCut(events, id)
   const r = new Set()
   if (home.power_on === false || hasEvent(events, 'house_power_cut', id)) r.add('cut')
   if (!home.heating && ['cooling', 'warning', 'critical'].includes(home.status)) r.add('cooling')
   if (['warning', 'critical'].includes(home.status) || hasEvent(events, 'threshold', id)) r.add('threshold')
   if (['ringing', 'in_call', 'done', 'no_answer', 'unreachable'].includes(home.call_status) || hasEvent(events, 'call_started', id)) r.add('call')
   if (rank === 1 && ['warning', 'critical'].includes(home.status)) r.add('ranked')
-  if (home.outcome === 'helped' || hasEvent(events, 'help_delivered', id)) r.add('help')
+  if (home.outcome === 'helped') r.add('help')
   if (home.outcome === 'helped' && home.status === 'heated') r.add('normal')
   return r
 }

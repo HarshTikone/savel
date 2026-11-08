@@ -58,14 +58,16 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 2px s
 .story-card { padding: 12px 16px; }
 .story-title { font-size: 12px; color: var(--muted); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 10px; }
 .story { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; counter-reset: s; }
-.story-step { position: relative; display: flex; align-items: flex-start; gap: 8px; padding-top: 2px; }
-.story:not(.vertical) .story-step:not(:last-child)::after { content: ''; position: absolute; left: 30px; right: -4px; top: 13px; height: 2px; background: var(--line); }
+.story-step { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding-top: 2px; }
+.story.vertical .story-step { flex-direction: row; gap: 8px; }
+.story:not(.vertical) .story-step:not(:last-child)::after { content: ''; position: absolute; left: 32px; right: 0; top: 14px; height: 2px; background: var(--line); }
 .story:not(.vertical) .story-step.done:not(:last-child)::after { background: var(--good); }
 .story-dot { position: relative; z-index: 1; flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 800;
   background: var(--bg); border: 2px solid var(--line); color: var(--muted); transition: all .4s; }
 .story-step.done .story-dot { background: var(--good); border-color: var(--good); color: #05210f; }
 .story-step.current .story-dot { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 4px rgba(124,156,255,.18); animation: breathe 1.8s ease-in-out infinite; }
-.story-text { display: flex; flex-direction: column; min-width: 0; padding-top: 3px; }
+.story-text { display: flex; flex-direction: column; min-width: 0; }
+.story.vertical .story-text { padding-top: 3px; }
 .story-label { font-weight: 700; font-size: 13px; }
 .story-step.todo .story-label { color: var(--muted); font-weight: 600; }
 .story-detail { font-size: 12px; color: var(--muted); min-height: 16px; }

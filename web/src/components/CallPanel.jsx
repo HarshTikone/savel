@@ -46,7 +46,9 @@ function Stepper({ phase }) {
 // Every ringing house gets its own card; the presenter answers one at a time.
 export function IncomingCalls({ calls = [], voice, homesById = {} }) {
   if (!voice) return null
-  const ringing = calls.filter((c) => c.source === 'live' && c.phase === 'ringing' && c.home_id !== voice.activeHome)
+  // Only hide a house's ring card while we are actually on a call with that house; after hanging up,
+  // the same house can ring again and must get its own Answer / Decline.
+  const ringing = calls.filter((c) => c.source === 'live' && c.phase === 'ringing' && !(voice.busy && c.home_id === voice.activeHome))
   const onCall = voice.activeHome && (voice.status === 'talking' || voice.status === 'connecting')
   if (!onCall && ringing.length === 0 && voice.status !== 'error') return null
   return (
@@ -98,8 +100,10 @@ export default function CallPanel({ call, events = [], highlight, voice }) {
     )
   }
   // While the browser call is open (and until the webhook delivers the real transcript) follow it live.
-  const followLive = voice && voice.activeHome === call.home_id && call.source === 'live' && ['ringing', 'in_call'].includes(call.phase)
-    && (voice.status === 'talking' || voice.status === 'connecting' || voice.ended)
+  // Follow the browser call live only for the call we are on (or just hung up); a new ring is a new call.
+  const followLive = voice && voice.activeHome === call.home_id && call.source === 'live'
+    && ((call.phase === 'in_call' && (voice.status === 'talking' || voice.status === 'connecting' || voice.ended))
+      || (call.phase === 'ringing' && (voice.status === 'talking' || voice.status === 'connecting')))
   const shownPhase = followLive
     ? (voice.ended ? 'extracting' : voice.status === 'talking' ? 'in_call' : 'ringing')
     : call.phase

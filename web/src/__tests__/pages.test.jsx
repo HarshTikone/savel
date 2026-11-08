@@ -82,6 +82,12 @@ describe('incoming calls', () => {
     fireEvent.click(screen.getAllByText('Decline')[1])
     expect(voice.decline).toHaveBeenCalledWith('H-32')
   })
+  it('the same house rings again after we hung up: it gets Answer / Decline again', () => {
+    const voice = { ...idle(), activeHome: 'H-31', status: 'idle', busy: false, ended: true }
+    render(<IncomingCalls calls={[ring('H-31', 27)]} voice={voice} />)
+    fireEvent.click(screen.getByText('Answer'))
+    expect(voice.answer).toHaveBeenCalledWith(expect.objectContaining({ home_id: 'H-31' }))
+  })
   it('other houses keep ringing while one call is in progress', () => {
     const voice = { ...idle(), activeHome: 'H-31', status: 'talking', busy: true }
     render(<IncomingCalls calls={[ring('H-31', 20), ring('H-32', 15)]} voice={voice} />)

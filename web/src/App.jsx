@@ -36,7 +36,10 @@ export default function App() {
   const trends = useTrends(data.runId)
   const sim = useSim(data.refresh)
   const [helpPending, setHelpPending] = useState({})
-  const anyRinging = calls.some((c) => c.source === 'live' && c.phase === 'ringing' && c.home_id !== voice.activeHome)
+  const anyRinging = calls.some((c) => c.source === 'live' && c.phase === 'ringing' && !(voice.busy && c.home_id === voice.activeHome))
+  // The house we last talked to is ringing again: drop the old call's 'ended' state and transcript.
+  const reRing = !voice.busy && voice.activeHome && calls.some((c) => c.home_id === voice.activeHome && c.phase === 'ringing')
+  useEffect(() => { if (reRing && voice.ended) voice.forgetEnded() }, [reRing]) // eslint-disable-line react-hooks/exhaustive-deps
   useRingtone(anyRinging)
 
   const onHelp = useCallback(async (id) => {

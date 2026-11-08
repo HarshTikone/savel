@@ -1,7 +1,6 @@
 import { PhoneCall, Phone, PhoneOff, CheckCircle2, HeartPulse, Bot, Mic, MapPin, Activity } from 'lucide-react'
-import { useCalls } from '../hooks/useCalls'
 import { OUTCOME_LABEL } from '../data/contract'
-import { IncomingCall } from '../components/CallPanel'
+import { IncomingCalls } from '../components/CallPanel'
 import StatusPill from '../components/StatusPill'
 import { temp } from '../lib/format'
 
@@ -19,9 +18,8 @@ function Kpi({ icon: Icon, label, value, tone }) {
   )
 }
 
-export default function AgentPage({ data, voice }) {
-  const { homes, call, runId } = data
-  const calls = useCalls(runId)
+export default function AgentPage({ data, voice, calls = [], homesById = {} }) {
+  const { homes } = data
   const byId = Object.fromEntries(homes.map((h) => [h.id, h]))
   const withHome = calls.map((c) => ({ ...c, home: byId[c.home_id] }))
   const active = withHome.filter((c) => ACTIVE.includes(c.phase))
@@ -41,7 +39,7 @@ export default function AgentPage({ data, voice }) {
 
   return (
     <div className="page agent">
-      <div className="incoming-slot"><IncomingCall call={call} voice={voice} /></div>
+      <IncomingCalls calls={calls} voice={voice} homesById={homesById} />
       <ul className="tiles six">
         <Kpi icon={Activity} label="Calling right now" value={active.length} tone={active.length ? 'live' : ''} />
         <Kpi icon={MapPin} label="Areas being called" value={areasNow} />
@@ -67,7 +65,7 @@ export default function AgentPage({ data, voice }) {
                       <span className="muted">Block {c.home ? c.home.block : '?'}</span>
                       <span className="src">{c.source === 'live' ? <><Mic size={11} /> Live voice</> : <><Bot size={11} /> AI call</>}</span>
                     </span>
-                    <span className="live-phase">{PHASE_LABEL[c.phase]}{c.home ? ` · ${temp(c.home.temp_f)}` : ''}</span>
+                    <span className="live-phase">{PHASE_LABEL[c.phase]}{c.phase === 'ringing' && c.ring_left_s != null ? ` · drops in ${c.ring_left_s} s` : ''}{c.home ? ` · ${temp(c.home.temp_f)}` : ''}</span>
                     {c.last && <span className="live-last">{c.last}</span>}
                   </span>
                   {c.home && <StatusPill home={c.home} size="sm" />}

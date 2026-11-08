@@ -5,12 +5,11 @@ import BlockGridMap from '../components/BlockGridMap'
 import PriorityList from '../components/PriorityList'
 import HouseCard from '../components/HouseCard'
 import HouseStory from '../components/HouseStory'
-import CallPanel, { IncomingCall } from '../components/CallPanel'
+import CallPanel, { IncomingCalls } from '../components/CallPanel'
 import TemperatureChart from '../components/TemperatureChart'
 import ActivityFeed from '../components/ActivityFeed'
 import TrendStrip from '../components/TrendStrip'
 import CallsBoard from '../components/CallsBoard'
-import { useCalls } from '../hooks/useCalls'
 import { useSeries } from '../hooks/useSeries'
 import { useStory } from '../hooks/useStory'
 import { rankOf, rankedHomes } from '../lib/story'
@@ -55,7 +54,7 @@ function Legend() {
   )
 }
 
-export default function ResponderPage({ data, voice, trends, onHelp, helpPending }) {
+export default function ResponderPage({ data, voice, calls = [], homesById = {}, trends, onHelp, helpPending }) {
   const { homes, state, events, call, runId } = data
   const [picked, setPicked] = useState(null)
   const [mapMode, setMapMode] = useState('map')
@@ -69,7 +68,7 @@ export default function ResponderPage({ data, voice, trends, onHelp, helpPending
   useEffect(() => {
     if (!callHome || lastCall.current === callHome) return undefined
     lastCall.current = callHome
-    setPicked(callHome)
+    setPicked((p) => p || callHome)
     setPulseId(callHome)
     const t = setTimeout(() => setPulseId(null), 3000)
     return () => clearTimeout(t)
@@ -82,12 +81,11 @@ export default function ResponderPage({ data, voice, trends, onHelp, helpPending
   // The timeline follows the house on screen.
   const steps = useStory(home, rank, events, runId)
   const series = useSeries(selectedId, runId)
-  const calls = useCalls(runId)
-  const callForHome = call && home && call.home_id === home.id ? call : null
+  const callForHome = home ? calls.find((c) => c.home_id === home.id) || null : null
 
   return (
     <div className="page responder">
-      <div className="incoming-slot"><IncomingCall call={call} voice={voice} /></div>
+      <IncomingCalls calls={calls} voice={voice} homesById={homesById} />
       {home && (
         <section className="card story-card" aria-label="House story">
           <div className="story-title">Timeline · <span className="strong-id">{home.id}</span>

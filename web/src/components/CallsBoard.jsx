@@ -29,7 +29,7 @@ export default function CallsBoard({ calls, selectedId, onSelect }) {
                   <strong>{c.home_id}</strong>
                   <span className="src">{c.source === 'live' ? <><Mic size={11} /> Live</> : <><Bot size={11} /> Auto</>}</span>
                 </span>
-                <span className="call-card-phase"><p.icon size={13} /> {p.label}</span>
+                <span className="call-card-phase"><p.icon size={13} /> {p.label}{c.phase === 'ringing' && c.ring_left_s != null ? ` · ${c.ring_left_s}s` : ''}</span>
                 {outcome && <span className={`call-card-out ${['needs_help', 'medical', 'unreachable'].includes(c.outcome) ? 'bad' : ''}`}>{outcome}</span>}
               </button>
             </li>

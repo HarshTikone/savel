@@ -6,11 +6,6 @@ import { reachedNow, rankedHomes, STORY_STEPS } from '../lib/story'
 import { homeColor, STATUS_COLOR } from '../lib/colors'
 
 vi.mock('../components/HomeMap', () => ({ default: () => <div data-testid="map" /> }))
-vi.mock('../hooks/useCalls', () => ({ useCalls: () => [
-  { home_id: 'H-13', phase: 'in_call', source: 'live', outcome: 'none', last: 'Resident: it is freezing' },
-  { home_id: 'H-27', phase: 'ringing', source: 'scripted', outcome: 'none', last: '' },
-  { home_id: 'H-14', phase: 'done', source: 'scripted', outcome: 'medical', last: '' },
-] }))
 vi.mock('../hooks/useSeries', () => ({ useSeries: () => ({ series: null, error: null, loading: false }) }))
 
 import ResponderPage from '../pages/ResponderPage'
@@ -72,25 +67,28 @@ describe('pages', () => {
   })
 })
 
-import { IncomingCall } from '../components/CallPanel'
+import { IncomingCalls } from '../components/CallPanel'
 
-describe('incoming call', () => {
-  const ringing = { home_id: 'H-13', source: 'live', phase: 'ringing', transcript: [] }
-  it('shows Answer and Decline while ringing', () => {
-    const voice = { status: 'idle', ended: false, error: '', answer: vi.fn(), decline: vi.fn(), hangUp: vi.fn(), liveLines: [] }
-    render(<IncomingCall call={ringing} voice={voice} />)
-    fireEvent.click(screen.getByText('Answer'))
-    fireEvent.click(screen.getByText('Decline'))
-    expect(voice.answer).toHaveBeenCalled()
-    expect(voice.decline).toHaveBeenCalled()
+describe('incoming calls', () => {
+  const ring = (id, left) => ({ home_id: id, source: 'live', phase: 'ringing', ring_left_s: left, transcript: [] })
+  const idle = () => ({ activeHome: null, status: 'idle', busy: false, ended: false, error: '', answer: vi.fn(), decline: vi.fn(), hangUp: vi.fn(), liveLines: [] })
+  it('shows one card per ringing house with Answer, Decline and a countdown', () => {
+    const voice = idle()
+    render(<IncomingCalls calls={[ring('H-31', 24), ring('H-32', 9), { home_id: 'H-11', source: 'live', phase: 'done' }]} voice={voice} />)
+    expect(screen.getAllByText('Answer')).toHaveLength(2)
+    expect(screen.getByText('Ringing · drops in 24 s')).toBeInTheDocument()
+    fireEvent.click(screen.getAllByText('Answer')[0])
+    expect(voice.answer).toHaveBeenCalledWith(expect.objectContaining({ home_id: 'H-31' }))
+    fireEvent.click(screen.getAllByText('Decline')[1])
+    expect(voice.decline).toHaveBeenCalledWith('H-32')
   })
-  it('shows Hang up during the call and nothing for scripted calls', () => {
-    const voice = { status: 'talking', ended: false, error: '', answer: vi.fn(), decline: vi.fn(), hangUp: vi.fn(), liveLines: [] }
-    const { rerender } = render(<IncomingCall call={{ ...ringing, phase: 'in_call' }} voice={voice} />)
+  it('other houses keep ringing while one call is in progress', () => {
+    const voice = { ...idle(), activeHome: 'H-31', status: 'talking', busy: true }
+    render(<IncomingCalls calls={[ring('H-31', 20), ring('H-32', 15)]} voice={voice} />)
+    expect(screen.getByText(/On the call with H-31/)).toBeInTheDocument()
+    expect(screen.getByText('Busy')).toBeDisabled()
     fireEvent.click(screen.getByText('Hang up'))
     expect(voice.hangUp).toHaveBeenCalled()
-    rerender(<IncomingCall call={{ ...ringing, source: 'scripted' }} voice={voice} />)
-    expect(screen.queryByText('Hang up')).toBeNull()
   })
 })
 
@@ -113,7 +111,12 @@ describe('calls board', () => {
 
 describe('AI agent page', () => {
   it('shows who the agent is calling right now and by area', () => {
-    render(<AgentPage data={data} voice={null} />)
+    const calls = [
+      { home_id: 'H-13', phase: 'in_call', source: 'live', outcome: 'none', last: 'Resident: it is freezing' },
+      { home_id: 'H-27', phase: 'ringing', source: 'live', outcome: 'none', last: '', ring_left_s: 12 },
+      { home_id: 'H-14', phase: 'done', source: 'live', outcome: 'medical', last: '' },
+    ]
+    render(<AgentPage data={data} voice={null} calls={calls} />)
     expect(screen.getByText('Calling right now', { selector: '.tile-label' }).previousSibling.textContent).toBe('2')
     expect(screen.getByText('Areas being called').previousSibling.textContent).toBe('2')
     expect(screen.getByText('Resident: it is freezing')).toBeInTheDocument()

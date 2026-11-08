@@ -1,32 +1,24 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { ELEVEN_AGENT_ID, ELEVEN_CLIENT_URL } from '../config'
 
 const post = (path, body) =>
   fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => {})
 
-// The presenter plays the resident: a ringing live call waits for Answer or Decline.
+// The presenter plays the resident. Several houses can ring at once; the presenter answers one.
 // Answer is a real click, so the browser allows the microphone and the agent's voice.
-// states: idle | connecting | talking | error
-export function useVoiceCall(call, home) {
+// status: idle | connecting | talking | error   (for activeHome)
+export function useVoiceCall(homesById = {}) {
+  const [activeHome, setActiveHome] = useState(null)
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState('')
   const [liveLines, setLiveLines] = useState([])
   const [ended, setEnded] = useState(false)
   const session = useRef(null)
-  const homeId = call ? call.home_id : null
 
-  // A new call (or a new house) starts with a clean slate.
-  useEffect(() => {
-    if (call && call.source === 'live' && call.phase === 'ringing' && !session.current) {
-      setEnded(false)
-      setLiveLines([])
-      setError('')
-    }
-  }, [homeId, call && call.phase]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const answer = useCallback(async () => {
-    if (!call || session.current) return
-    const target = call
+  const answer = useCallback(async (entry) => {
+    if (!entry || session.current) return
+    const home = homesById[entry.home_id]
+    setActiveHome(entry.home_id)
     setStatus('connecting')
     setLiveLines([])
     setEnded(false)
@@ -38,14 +30,14 @@ export function useVoiceCall(call, home) {
         agentId: ELEVEN_AGENT_ID,
         connectionType: 'webrtc',
         dynamicVariables: {
-          home_id: target.home_id,
+          home_id: entry.home_id,
           resident_label: home && home.block ? `a resident on Block ${home.block}` : 'a resident',
           reason: 'warning',
-          language: target.language === 'es' ? 'Spanish' : 'English',
+          language: entry.language === 'es' ? 'Spanish' : 'English',
         },
         onConnect: () => {
           setStatus('talking')
-          post('/api/calls/live/answered', { home_id: target.home_id })
+          post('/api/calls/live/answered', { home_id: entry.home_id })
         },
         onMessage: (m) => {
           const text = m && (m.message || m.text)
@@ -68,11 +60,9 @@ export function useVoiceCall(call, home) {
       setError(String((e && e.message) || e))
       setStatus('error')
     }
-  }, [call, home])
+  }, [homesById])
 
-  const decline = useCallback(() => {
-    if (call) post('/api/calls/live/declined', { home_id: call.home_id })
-  }, [call])
+  const decline = useCallback((homeId) => post('/api/calls/live/declined', { home_id: homeId }), [])
 
   const hangUp = useCallback(async () => {
     if (session.current) {
@@ -80,5 +70,6 @@ export function useVoiceCall(call, home) {
     }
   }, [])
 
-  return { status, error, liveLines, ended, answer, decline, hangUp }
+  const busy = status === 'connecting' || status === 'talking'
+  return { activeHome, status, error, liveLines, ended, busy, answer, decline, hangUp }
 }

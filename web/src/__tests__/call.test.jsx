@@ -7,9 +7,9 @@ import EventLog from '../components/EventLog'
 import Banner from '../components/Banner'
 
 describe('CallPanel', () => {
-  it('shows No call in progress for null', () => {
+  it('shows No call for this house for null', () => {
     render(<CallPanel call={null} events={[]} />)
-    expect(screen.getByText('No call in progress')).toBeInTheDocument()
+    expect(screen.getByText('No call for this house')).toBeInTheDocument()
   })
   it('shows SCRIPTED badge and extracted chips', () => {
     render(<CallPanel call={callFx} events={[]} />)
@@ -19,9 +19,9 @@ describe('CallPanel', () => {
     expect(screen.getByText('oxygen concentrator')).toBeInTheDocument()
     expect(screen.getByText("Can't leave")).toBeInTheDocument()
   })
-  it('shows LIVE TEST for a live call', () => {
+  it('shows LIVE for a live call', () => {
     render(<CallPanel call={{ ...callFx, source: 'live' }} events={[]} />)
-    expect(screen.getByText('LIVE TEST')).toBeInTheDocument()
+    expect(screen.getByText('LIVE')).toBeInTheDocument()
   })
   it('normalizes transcript items', () => {
     expect(transcriptLine('hi')).toBe('hi')

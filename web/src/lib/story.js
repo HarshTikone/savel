@@ -20,7 +20,7 @@ export function rankOf(homes, id) {
 // Who needs attention, most urgent first. Same order as the backend risk score.
 export function rankedHomes(homes) {
   return [...homes]
-    .filter((h) => h.risk > 0 && h.outcome !== 'helped' && h.status !== 'heated')
+    .filter((h) => h.risk > 0 && h.outcome !== 'helped' && !['heated', 'leaving', 'recovering'].includes(h.status))
     .sort((a, b) => b.risk - a.risk || (a.hours_to_50 ?? 99) - (b.hours_to_50 ?? 99) || a.id.localeCompare(b.id))
 }
 

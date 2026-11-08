@@ -273,3 +273,11 @@ details summary { cursor: pointer; color: var(--muted); font-size: 12px; }
 @media (max-width: 800px) { .a-grid { grid-template-columns: 1fr; } .tiles.six { grid-template-columns: repeat(2, 1fr); } }
 
 .strong-id { color: var(--text); font-weight: 800; }
+
+.incoming-stack { display: flex; flex-direction: column; gap: 10px; }
+.ring-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 10px; }
+.ring-card { padding: 10px 12px; }
+.ring-info { display: flex; align-items: center; gap: 10px; }
+.ring-info > span:last-child { display: flex; flex-direction: column; }
+.ring-left { font-size: 12px; color: var(--accent); font-weight: 700; }
+.btn-answer:disabled { opacity: .5; cursor: not-allowed; }

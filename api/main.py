@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from api import calls, db, ingest, loop, routes
+from api import calls, db, ingest, loop, routes, trends
 from api.state import state
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s api %(levelname)s %(message)s")
@@ -37,6 +37,7 @@ app.add_middleware(
 app.include_router(ingest.router)
 app.include_router(routes.router)
 app.include_router(calls.router)
+app.include_router(trends.router)
 
 
 @app.get("/api/health")

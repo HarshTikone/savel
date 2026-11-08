@@ -69,3 +69,10 @@ def test_transcript_text_accepts_plain_strings():
     t = ex.transcript_text(["SAVEL: hi", "Resident: no heat"])
     assert t == "SAVEL: hi\nResident: no heat"
     assert ex.fallback_extract(t)["has_heat"] is False
+
+
+def test_gemini_model_order(monkeypatch):
+    monkeypatch.setenv("GEMINI_MODEL", "a-model")
+    assert ex.gemini_models() == ["a-model", ex.GEMINI_FALLBACK_MODEL]
+    monkeypatch.setenv("GEMINI_MODEL", ex.GEMINI_FALLBACK_MODEL)
+    assert ex.gemini_models() == [ex.GEMINI_FALLBACK_MODEL]

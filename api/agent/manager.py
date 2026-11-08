@@ -18,15 +18,18 @@ from api.state import state
 log = logging.getLogger("api.agent.manager")
 
 SCRIPTED_SECONDS = float(os.getenv("SCRIPTED_CALL_SECONDS", "8"))
-LIVE_WAIT_S = float(os.getenv("LIVE_CALL_WAIT_S", "180"))
+LIVE_WAIT_S = float(os.getenv("LIVE_CALL_WAIT_S", "40"))       # how long a live call may ring before the scripted fallback
+LIVE_TALK_S = float(os.getenv("LIVE_CALL_TALK_S", "300"))      # once answered: conversation + webhook delay
 RETRY_STORM_MIN = float(os.getenv("CALL_RETRY_STORM_MINUTES", "20"))
 LIVE_FALLBACK = os.getenv("LIVE_FALLBACK", "scripted")
 LIVE_HOMES = {h.strip() for h in os.getenv("LIVE_HOMES", "H-13").split(",") if h.strip()}
 
 _current: dict | None = None
 last_extracted: dict[str, dict] = {}     # home_id -> {"run_id", "source", "extracted"}
-_active: set[str] = set()
+_active: dict[str, str] = {}              # home_id -> run_id of the flow in progress
+_flows: dict[str, "asyncio.Task"] = {}
 _live_waiters: dict[str, asyncio.Future] = {}
+_live_answered: set[str] = set()          # homes whose live call was picked up (browser session connected)
 _tasks: set[asyncio.Task] = set()
 _sem: asyncio.Semaphore | None = None
 _sem_loop = None
@@ -47,8 +50,18 @@ def _stale(run_id: str) -> bool:
 
 
 def _home(home_id: str) -> dict:
-    return next((h for h in state.homes_cache if h["id"] == home_id),
-                {"id": home_id, "language": "en", "medical_needs": [], "age_band": None})
+    """Home details for a call. The loop spawns calls before it refreshes homes_cache, so fall back
+    to the static homes table (language, age, medical needs never change during a run)."""
+    cached = next((h for h in state.homes_cache if h["id"] == home_id), None)
+    if cached:
+        return cached
+    from api import loop  # lazy: api.loop imports api.calls, which imports this module
+    static = next((h for h in loop._static if h["id"] == home_id), None)
+    if static:
+        return {"id": home_id, "language": static.get("language") or "en",
+                "age_band": static.get("age_band"),
+                "medical_needs": [m for m in (static.get("medical_needs") or "").split(",") if m]}
+    return {"id": home_id, "language": "en", "medical_needs": [], "age_band": None}
 
 
 def _set(home_id: str, call_status: str, outcome: str = "none") -> None:
@@ -56,10 +69,15 @@ def _set(home_id: str, call_status: str, outcome: str = "none") -> None:
 
 
 def _start_view(home: dict, run_id: str, source: str, phase: str) -> dict:
+    """New call view. A scripted call never pushes an in-progress live call off the dashboard panel."""
     global _current
-    _current = {"run_id": run_id, "home_id": home["id"], "phase": phase, "source": source,
-                "language": home.get("language") or "en", "transcript": [], "extracted": None}
-    return _current
+    view = {"run_id": run_id, "home_id": home["id"], "phase": phase, "source": source,
+            "language": home.get("language") or "en", "transcript": [], "extracted": None}
+    live_busy = (_current and _current["source"] == "live" and _current["run_id"] == run_id
+                 and _current["phase"] in ("ringing", "in_call", "extracting"))
+    if not (source == "scripted" and live_busy):
+        _current = view
+    return view
 
 
 def current_view() -> dict | None:
@@ -151,6 +169,17 @@ async def _scripted_attempt(home: dict, run_id: str, attempt: int, started) -> b
     return True
 
 
+def mark_live_answered(home_id: str) -> bool:
+    """The dashboard connected the voice agent for a ringing live call: stop the ring timeout."""
+    if home_id not in _live_waiters:
+        return False
+    _live_answered.add(home_id)
+    if _current and _current["home_id"] == home_id and _current["source"] == "live" and _current["phase"] == "ringing":
+        _current["phase"] = "in_call"
+    _set(home_id, "in_call")
+    return True
+
+
 async def _live_attempt(home: dict, run_id: str, started) -> bool | None:
     """True answered, False no answer, None = fell through to caller's fallback."""
     hid = home["id"]
@@ -161,16 +190,26 @@ async def _live_attempt(home: dict, run_id: str, started) -> bool | None:
     fut = asyncio.get_running_loop().create_future()
     _live_waiters[hid] = fut
     await set_live_call(True)
+    _live_answered.discard(hid)
     try:
-        lines = await asyncio.wait_for(fut, LIVE_WAIT_S)
+        try:
+            lines = await asyncio.wait_for(asyncio.shield(fut), LIVE_WAIT_S)
+        except asyncio.TimeoutError:
+            if hid not in _live_answered:
+                lines = None
+            else:                                  # picked up while ringing: allow the whole conversation
+                lines = await asyncio.wait_for(fut, LIVE_TALK_S)
     except asyncio.TimeoutError:
         lines = None
     finally:
-        _live_waiters.pop(hid, None)
+        _live_answered.discard(hid)
+        if _live_waiters.get(hid) is fut:
+            del _live_waiters[hid]
         await set_live_call(False)
     if _stale(run_id):
         return True
     if lines is None:
+        v["phase"] = "no_answer"      # live view is over; the scripted fallback may take the panel
         return None
     if not _resident_spoke(lines):
         _set(hid, "no_answer")
@@ -222,16 +261,24 @@ async def _run(home_id: str, reason: str, run_id: str) -> None:
     except Exception:
         log.exception("call flow failed for %s", home_id)
     finally:
-        _active.discard(home_id)
+        if _active.get(home_id) == run_id:
+            del _active[home_id]
+        if _flows.get(home_id) is asyncio.current_task():
+            del _flows[home_id]
 
 
 async def trigger_call(home_id: str, reason: str) -> None:
     """Returns immediately; the call runs as a background task. At most one flow per home."""
-    if home_id in _active or not state.run_id:
+    run_id = state.run_id
+    if not run_id or _active.get(home_id) == run_id:
         return
-    _active.add(home_id)
+    stale = _flows.pop(home_id, None)       # a flow from an earlier run must not block this one
+    if stale and not stale.done():
+        stale.cancel()
+    _active[home_id] = run_id
     _set(home_id, "queued")
-    t = asyncio.create_task(_run(home_id, reason, state.run_id))
+    t = asyncio.create_task(_run(home_id, reason, run_id))
+    _flows[home_id] = t
     _tasks.add(t)
     t.add_done_callback(_tasks.discard)
 
@@ -242,11 +289,11 @@ async def handle_live_transcript(home_id: str, lines: list[str]) -> bool:
     if fut and not fut.done():
         fut.set_result(lines)
         return True
-    if not state.run_id or home_id in _active:
+    if not state.run_id or _active.get(home_id) == state.run_id:
         return False
     # Presenter started a call outside a trigger (e.g. the Call resident button): process it directly.
     run_id, home, started = state.run_id, _home(home_id), state.sim_now
-    _active.add(home_id)
+    _active[home_id] = run_id
     try:
         v = _start_view(home, run_id, "live", "in_call")
         v["transcript"][:] = lines
@@ -258,5 +305,6 @@ async def handle_live_transcript(home_id: str, lines: list[str]) -> bool:
         _set(home_id, "in_call")
         await _finish(home, run_id, "live", lines, started, v)
     finally:
-        _active.discard(home_id)
+        if _active.get(home_id) == run_id:
+            del _active[home_id]
     return True

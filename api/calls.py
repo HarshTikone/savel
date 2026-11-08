@@ -22,6 +22,13 @@ async def calls_current():
     return current_view()
 
 
+@router.post("/api/calls/live/answered", status_code=204)
+async def calls_live_answered(body: dict):
+    """The dashboard connected the voice agent to a ringing live call."""
+    manager.mark_live_answered(str(body.get("home_id", "")))
+    return Response(status_code=204)
+
+
 @router.post("/api/calls/webhook", status_code=204)
 async def calls_webhook(request: Request):
     raw = await request.body()

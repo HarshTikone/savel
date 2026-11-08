@@ -126,6 +126,24 @@ async def test_live_timeout_falls_back_to_scripted(setup, monkeypatch):
     assert m.current_view()["source"] == "scripted"
 
 
+async def test_answered_live_call_outlives_ring_timeout(setup, monkeypatch):
+    monkeypatch.setattr(m, "LIVE_HOMES", {"H-13"})
+    monkeypatch.setattr(m, "LIVE_WAIT_S", 0.2)
+    state.homes_cache = [mk("H-13")]
+    await m.trigger_call("H-13", "warning")
+    for _ in range(50):
+        if "H-13" in m._live_waiters:
+            break
+        await asyncio.sleep(0.02)
+    assert m.mark_live_answered("H-13")
+    assert m.current_view()["phase"] == "in_call"
+    await asyncio.sleep(0.5)                     # past the ring timeout: still waiting, no fallback
+    assert "H-13" in m._live_waiters
+    assert await m.handle_live_transcript("H-13", ["SAVEL: Is your heat on?", "Resident: No heat, need help."])
+    await settle("H-13")
+    assert m.current_view()["source"] == "live" and state.calls["H-13"]["outcome"] == "needs_help"
+
+
 async def test_live_silent_call_counts_as_no_answer(monkeypatch):
     monkeypatch.setattr(m, "LIVE_HOMES", {"H-13"})
     state.homes_cache = [mk("H-13")]
@@ -157,3 +175,60 @@ async def test_reset_hides_call_and_aborts():
     assert m.current_view() is None
     await settle("H-06")
     assert state.calls["H-06"]["call_status"] != "done"
+
+
+async def test_home_details_fall_back_to_static_table(monkeypatch):
+    from api import loop
+    state.homes_cache = []          # the loop has not cached this home yet
+    monkeypatch.setattr(loop, "_static", [{"id": "H-18", "language": "es", "age_band": "40-64", "medical_needs": "oxygen,heart"}])
+    h = m._home("H-18")
+    assert h["language"] == "es" and h["medical_needs"] == ["oxygen", "heart"]
+    await m.trigger_call("H-18", "warning")
+    for _ in range(100):
+        v = m.current_view()
+        if v and v["transcript"]:
+            break
+        await asyncio.sleep(0.05)
+    assert m.current_view()["language"] == "es"
+    state.run_id = "stop"           # abandon the shy retry wait
+    await settle("H-18")
+
+
+async def test_scripted_call_does_not_replace_active_live_view(monkeypatch):
+    monkeypatch.setattr(m, "LIVE_HOMES", {"H-13"})
+    state.homes_cache = [mk("H-13"), mk("H-05", medical_needs=["oxygen"])]
+    await m.trigger_call("H-13", "warning")
+    for _ in range(50):
+        if "H-13" in m._live_waiters:
+            break
+        await asyncio.sleep(0.02)
+    await m.trigger_call("H-05", "warning")
+    await settle("H-05")
+    v = m.current_view()
+    assert v["home_id"] == "H-13" and v["source"] == "live" and v["phase"] == "ringing"
+    await m.handle_live_transcript("H-13", ["SAVEL: hi", "Resident: no heat, I need help"])
+    await settle("H-13")
+    assert m.current_view()["phase"] == "done"
+
+
+async def test_stale_flow_from_previous_run_does_not_block_new_run(setup, monkeypatch):
+    monkeypatch.setattr(m, "LIVE_HOMES", {"H-13"})
+    state.homes_cache = [mk("H-13")]
+    await m.trigger_call("H-13", "warning")              # run r-test: live flow waits for a call
+    for _ in range(50):
+        if "H-13" in m._live_waiters:
+            break
+        await asyncio.sleep(0.02)
+    state.run_id = "r-new"                                # reset: new run, old flow still waiting
+    state.calls.clear()
+    await m.trigger_call("H-13", "warning")              # must start a fresh flow
+    assert m._active["H-13"] == "r-new"
+    for _ in range(50):
+        if state.calls.get("H-13", {}).get("call_status") == "ringing" and "H-13" in m._live_waiters:
+            break
+        await asyncio.sleep(0.02)
+    assert state.calls["H-13"]["call_status"] == "ringing"
+    assert setup["toggles"].count(True) == 2 and setup["toggles"].count(False) == 1   # old flow released its slot
+    await m.handle_live_transcript("H-13", ["SAVEL: hi", "Resident: no heat, need help"])
+    await settle("H-13")
+    assert state.calls["H-13"]["outcome"] == "needs_help" and m.current_view()["source"] == "live"

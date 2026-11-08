@@ -28,7 +28,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s sim %(levelname)s %(
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 INGEST_URL = os.getenv("INGEST_URL", "http://localhost:8000/api/ingest")
-SPEEDUP = int(os.getenv("SPEEDUP", "300"))
+SPEEDUP = int(os.getenv("SPEEDUP", "150"))   # storm seconds per real second (2.5 storm min/s)
 SEED = int(os.getenv("SEED", "42"))
 PREWARM_BLOCK = os.getenv("PREWARM_BLOCK", "B").upper()
 PREWARM_MINUTES = int(os.getenv("PREWARM_MINUTES", "80"))
@@ -45,7 +45,11 @@ HEAT_RATE = 1.5           # per hour, approach to setpoint when heating
 CO_RISE = 60.0            # ppm per storm hour with a blocked vent and a running furnace
 CO_FALL = 120.0           # ppm per storm hour once the vent is clear
 CO_TRIP, CO_UNTRIP, CO_CAP = 70.0, 5.0, 400.0
-NOISE_F = 0.3
+NOISE_F = 0.25            # sensor noise, standard deviation in degrees F
+OUTLIER_P = 0.015         # chance a reading is a bad spike
+DROPOUT_P = 0.03          # chance a sensor misses one tick (never two in a row)
+LAG_MAX_MIN = 10          # storm minutes of stagger before each home in a block loses heat
+WIND_AMP = 0.12           # wind gusts change how fast every house in the storm loses heat
 PLACEHOLDER_PHONE = "+1-000-000-0000"
 
 
@@ -115,16 +119,34 @@ class Sim:
         self.vent_blocked: dict[str, bool] = {}
         self.tripped: dict[str, bool] = {}
         self.noise = random.Random(SEED + 1)
+        self.dyn = random.Random(SEED + 2)
+        self.lag_min = {h["id"]: round(random.Random(f"{SEED}-{h['id']}").uniform(0, LAG_MAX_MIN), 1) for h in self.homes}
+        self.kmul: dict[str, float] = {h["id"]: 1.0 for h in self.homes}
+        self.cut_at: dict[str, datetime | None] = {b: None for b in BLOCKS}
+        self.skipped: set[str] = set()
 
     # -- physics
+    def mains(self, hid: str) -> bool:
+        """Does this home still have power? A block cut reaches each home a few minutes apart."""
+        block = self.by_id[hid]["block"]
+        if self.power[block]:
+            return True
+        cut = self.cut_at[block]
+        return cut is not None and self.sim_now < cut + timedelta(minutes=self.lag_min[hid])
+
     def heating(self, hid: str) -> bool:
-        return self.power[self.by_id[hid]["block"]] and not self.tripped[hid]
+        return self.mains(hid) and not self.tripped[hid]
+
+    def wind(self) -> float:
+        """Slow gusts: multiplier on heat loss, about 1 +/- WIND_AMP."""
+        minutes = self.sim_now.timestamp() / 60.0
+        return 1.0 + WIND_AMP * (0.6 * math.sin(minutes / 23.0) + 0.4 * math.sin(minutes / 7.0 + 1.3))
 
     def step(self, dt_s: float) -> None:
         dt_h = dt_s / 3600.0
         for h in self.homes:
             hid = h["id"]
-            power_on = self.power[h["block"]]
+            power_on = self.mains(hid)
             if self.vent_blocked[hid] and power_on and not self.tripped[hid]:
                 self.co[hid] = min(CO_CAP, self.co[hid] + CO_RISE * dt_h)
                 if self.co[hid] >= CO_TRIP:
@@ -137,7 +159,9 @@ class Sim:
             if self.heating(hid):
                 t += (SETPOINT_F - t) * (1 - math.exp(-HEAT_RATE * dt_h))
             else:
-                t = self.outdoor_f + (t - self.outdoor_f) * math.exp(-h["k_per_hour"] * dt_h)
+                self.kmul[hid] = max(0.8, min(1.25, 1.0 + 0.9 * (self.kmul[hid] - 1.0) + self.dyn.gauss(0, 0.015)))
+                k = h["k_per_hour"] * self.kmul[hid] * self.wind()
+                t = self.outdoor_f + (t - self.outdoor_f) * math.exp(-k * dt_h)
             self.temp[hid] = t
         self.sim_now += timedelta(seconds=dt_s)
 
@@ -146,12 +170,19 @@ class Sim:
         rows = []
         for h in self.homes:
             hid = h["id"]
-            power_on = self.power[h["block"]]
+            power_on = self.mains(hid)
             if not power_on and not h["battery"]:
                 continue  # sensor offline: no mains, no battery
+            if hid not in self.skipped and self.noise.random() < DROPOUT_P:
+                self.skipped.add(hid)
+                continue  # one missed reading (radio glitch)
+            self.skipped.discard(hid)
+            temp = self.temp[hid] + self.noise.gauss(0, NOISE_F)
+            if self.noise.random() < OUTLIER_P:
+                temp += self.noise.choice([-1, 1]) * self.noise.uniform(2.0, 4.0)
             rows.append({
                 "time": ts, "home_id": hid,
-                "temp_f": round(self.temp[hid] + self.noise.uniform(-NOISE_F, NOISE_F), 2),
+                "temp_f": round(temp, 2),
                 "co_ppm": round(self.co[hid], 2), "power_on": power_on,
                 "heating": self.heating(hid), "outdoor_f": self.outdoor_f, "run_id": self.run_id,
             })
@@ -175,6 +206,10 @@ class Sim:
             rid = f"{rid}-{suffix}"
         self.run_id = rid
         self.noise = random.Random(SEED + 1)
+        self.dyn = random.Random(SEED + 2)
+        self.kmul = {h["id"]: 1.0 for h in self.homes}
+        self.cut_at = {b: None for b in BLOCKS}
+        self.skipped = set()
         self.speed = SPEEDUP
         self.outdoor_f = OUTDOOR_F
         self.power = {b: True for b in BLOCKS}
@@ -187,6 +222,7 @@ class Sim:
         self.sim_now = LIVE_START - timedelta(minutes=prewarm)
         if prewarm > 0:
             self.power[PREWARM_BLOCK] = False
+            self.cut_at[PREWARM_BLOCK] = self.sim_now
             steps = prewarm // 5
             for _ in range(steps):
                 self.step(300)
@@ -253,7 +289,10 @@ def _home(home_id: str) -> str:
 @app.post("/cut_power/{block}")
 async def cut_power(block: str):
     async with sim.lock:
-        sim.power[_block(block)] = False
+        b = _block(block)
+        if sim.power[b]:
+            sim.cut_at[b] = sim.sim_now
+        sim.power[b] = False
     return sim.state()
 
 

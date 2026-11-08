@@ -1,9 +1,9 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip } from 'recharts'
 import { simClock } from '../lib/format'
 
-const MEASURED = '#0F172A'
-const ESTIMATED = '#64748B'
-const PREDICTED = '#059669'
+const MEASURED = '#f4f4f5'
+const ESTIMATED = '#a1a1aa'
+const PREDICTED = '#3b82f6'
 
 // Merge actual and predicted points by time. Measured and estimated runs each get their own key;
 // the boundary point is shared so lines connect. No points are invented.
@@ -65,25 +65,25 @@ export default function TemperatureChart({ series, error, loading, selectedId, w
   const { data, nowT } = buildChartData(series)
   const chart = (
     <LineChart data={data} width={width} height={width ? height : undefined} margin={{ top: 8, right: 16, bottom: 4, left: 0 }}>
-      <CartesianGrid stroke="#E2E8F0" strokeDasharray="3 3" />
+      <CartesianGrid stroke="#2b2b2b" strokeDasharray="3 3" />
       <XAxis
         dataKey="t"
         type="number"
         scale="time"
         domain={['dataMin', 'dataMax']}
         tickFormatter={simClock}
-        stroke="#64748B"
+        stroke="#a1a1aa"
         tick={{ fontSize: 12 }}
       />
-      <YAxis domain={yDomain(data)} stroke="#64748B" tick={{ fontSize: 12 }} unit="°" width={44} />
+      <YAxis domain={yDomain(data)} stroke="#a1a1aa" tick={{ fontSize: 12 }} unit="°" width={44} />
       <Tooltip
         labelFormatter={simClock}
         formatter={(v) => `${v}°F`}
-        contentStyle={{ background: '#0F172A', border: 'none', borderRadius: 8, color: '#F8FAFC', fontSize: 12 }} labelStyle={{ color: '#F8FAFC' }} itemStyle={{ color: '#F8FAFC' }}
+        contentStyle={{ background: '#222222', border: '1px solid #3a3a3a', borderRadius: 8, color: '#f4f4f5', fontSize: 12 }} labelStyle={{ color: '#f4f4f5' }} itemStyle={{ color: '#f4f4f5' }}
       />
-      <ReferenceLine y={60} stroke="#EAB308" strokeDasharray="4 4" label={{ value: 'warning 60°F', fill: '#CA8A04', fontSize: 12, position: 'insideTopRight' }} />
-      <ReferenceLine y={50} stroke="#EF4444" strokeDasharray="4 4" label={{ value: 'critical 50°F', fill: '#DC2626', fontSize: 12, position: 'insideBottomRight' }} />
-      {nowT !== null && <ReferenceLine x={nowT} stroke="#0F172A" label={{ value: 'now', fill: '#0F172A', fontSize: 12, position: 'top' }} />}
+      <ReferenceLine y={60} stroke="#facc15" strokeDasharray="4 4" label={{ value: 'warning 60°F', fill: '#fde047', fontSize: 12, position: 'insideTopRight' }} />
+      <ReferenceLine y={50} stroke="#EF4444" strokeDasharray="4 4" label={{ value: 'critical 50°F', fill: '#f87171', fontSize: 12, position: 'insideBottomRight' }} />
+      {nowT !== null && <ReferenceLine x={nowT} stroke="#a1a1aa" label={{ value: 'now', fill: '#a1a1aa', fontSize: 12, position: 'top' }} />}
       <Line dataKey="measured" stroke={MEASURED} strokeWidth={2} dot={false} isAnimationActive={false} connectNulls={false} name="Measured" />
       <Line dataKey="estimated" stroke={ESTIMATED} strokeWidth={2} strokeDasharray="2 4" dot={false} isAnimationActive={false} connectNulls={false} name="Estimated" />
       <Line dataKey="predicted" stroke={PREDICTED} strokeWidth={2} strokeDasharray="8 4" dot={false} isAnimationActive={false} connectNulls={false} name="Predicted" />

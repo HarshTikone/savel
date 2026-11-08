@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, HTTPException
 
 from api import loop
+from api.agent import manager
 from api.db import get_pool
 from api.predict import estimate, predict_curve
 from api.queries import SERIES_SQL, fetch_accuracy
@@ -16,7 +17,7 @@ router = APIRouter()
 log = logging.getLogger("api.routes")
 OUTDOOR_F = float(os.getenv("OUTDOOR_F", "5"))
 BLOCKS = {"A", "B", "C", "D"}
-ACTIONS = {"cut_power", "restore_power", "block_vent", "clear_vent", "outdoor", "speed"}
+ACTIONS = {"cut_power", "restore_power", "block_vent", "clear_vent", "outdoor", "speed", "cut_house", "restore_house"}
 
 
 async def _refresh() -> None:
@@ -49,6 +50,8 @@ async def sim_state_route():
         "outdoor_f": float(sim.get("outdoor_f", OUTDOOR_F)),
         "speed": int(sim.get("speed", SPEEDUP)),
         "live_call": state.live_calls > 0,
+        "focus_home": state.focus_home,
+        "houses_off": list(sim.get("houses_off", [])),
         "blocks": [{"block": b["block"], "power_on": bool(b["power_on"])} for b in sim.get("blocks", [])],
     }
 
@@ -73,7 +76,7 @@ def _validate(action: str, arg: str) -> str:
         if arg.upper() not in BLOCKS:
             raise bad
         return arg.upper()
-    if action in ("block_vent", "clear_vent"):
+    if action in ("block_vent", "clear_vent", "cut_house", "restore_house"):
         if not (len(arg) == 4 and arg.startswith("H-") and arg[2:].isdigit() and 1 <= int(arg[2:]) <= 40):
             raise bad
         return arg
@@ -108,8 +111,28 @@ async def sim_action(action: str, arg: str):
         state.add_event("vent_blocked", arg, f"Furnace vent blocked at {arg}", "warning")
     elif action == "clear_vent":
         state.add_event("vent_cleared", arg, f"Furnace vent cleared at {arg}", "info")
+    elif action == "cut_house":
+        state.focus_home = arg
+        manager.set_live_home(arg)        # the house in the story gets the live AI call
+        state.add_event("house_power_cut", arg, f"Power cut at {arg}", "warning")
+    elif action == "restore_house":
+        state.add_event("house_power_restored", arg, f"Power restored at {arg}", "info")
     await _refresh()
     return res
+
+
+@router.post("/api/homes/{home_id}/help")
+async def help_delivered(home_id: str):
+    """A responder reached the home: close its call, bring its power back, let it warm up."""
+    home_id = _validate("cut_house", home_id)
+    manager.resolve(home_id)
+    try:
+        await sim_post("restore_house", home_id)
+    except HTTPException:
+        log.warning("restore_house failed for %s", home_id)
+    state.add_event("help_delivered", home_id, f"Help delivered at {home_id}; power restored", "info")
+    await _refresh()
+    return {"home_id": home_id, "outcome": "helped"}
 
 
 @router.get("/api/events")

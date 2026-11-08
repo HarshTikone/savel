@@ -17,6 +17,9 @@ def _clamp(x: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, x))
 
 
+HELPED_SCORE = 0          # a responder reached the home and power is back
+
+
 def risk_score(home: dict, call: dict | None) -> int:
     """home: one entry of the /api/homes shape. call: state.calls[home_id] or None."""
     call = call or {}
@@ -25,6 +28,8 @@ def risk_score(home: dict, call: dict | None) -> int:
 
     if outcome == "leaving":
         return LEAVING_SCORE
+    if outcome == "helped":
+        return HELPED_SCORE
 
     temp = home.get("temp_f")
     co = home.get("co_ppm") or 0.0

@@ -59,7 +59,7 @@ async def test_no_repeat_call(pool, run_id, calls):
     await insert_readings(pool, [row(run_id, "H-12", t1, 55.0, heating=True, power_on=True)])
     state.sim_now = t1
     await cycles(3)
-    assert home("H-12")["status"] == "warning" and home("H-12")["heating"] is True
+    assert home("H-12")["status"] == "recovering" and home("H-12")["heating"] is True
     assert [c[0] for c in calls if c[0] == "H-12"] == ["H-12"]
     assert "H-12" not in state.episodes
 

@@ -18,11 +18,16 @@ def estimate(t_last, t_out, k, hours_silent):
     return t_out + (t_last - t_out) * math.exp(-k * hours_silent)
 
 
+RECOVERED_F = 62.0
+
+
 def status(temp_f, co_ppm, heating, h50, outcome):
     if co_ppm >= 35:
         return "critical"
     if outcome == "leaving":
         return "leaving"
+    if heating and temp_f < RECOVERED_F:
+        return "recovering"          # power is back: warming up, not yet comfortable
     if temp_f < 50 or (h50 is not None and h50 < 1.5):
         return "critical"
     if temp_f < 60 or (h50 is not None and h50 < 4):

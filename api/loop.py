@@ -72,6 +72,7 @@ async def _compute() -> None:
     sim = state.sim_state or {}
     speed = int(sim.get("speed") or SPEEDUP)
     block_power = {b["block"]: bool(b["power_on"]) for b in sim.get("blocks", [])}
+    houses_off = set(sim.get("houses_off", []))
 
     pool = await get_pool()
     homes = await _static_homes(pool)
@@ -99,7 +100,7 @@ async def _compute() -> None:
         if last is None:
             # Never reported in this run (no battery, block dark since the run began):
             # estimate from the setpoint at run start so silence raises concern.
-            if state.run_started is None or block_power.get(h["block"], True):
+            if state.run_started is None or (block_power.get(h["block"], True) and hid not in houses_off):
                 continue
             out = float(sim.get("outdoor_f", OUTDOOR_F))
             silent_h = (sim_now - state.run_started).total_seconds() / 3600
@@ -111,14 +112,14 @@ async def _compute() -> None:
             silent_s = (sim_now - last["time"]).total_seconds()
             online = silent_s <= offline_after
             if not online:
-                power_on = block_power.get(h["block"], power_on)
+                power_on = block_power.get(h["block"], power_on) and hid not in houses_off
                 if not power_on:
                     heating = False  # the sensor went quiet and its block has no power: no heat either
                 if not heating and k_calc > 0:
                     temp = estimate(temp, out, k_calc, silent_s / 3600)
 
         h60 = h50 = None
-        if not heating:
+        if not heating and k_est is not None:   # predict only once a cooling rate is learned
             h60 = hours_to(temp, out, 60, k_calc)
             h50 = hours_to(temp, out, 50, k_calc)
         call = state.calls.get(hid)

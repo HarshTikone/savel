@@ -75,8 +75,8 @@ export default function HomeMap({ homes, blocks = [], selectedId, onSelect, runK
   return (
     <MapContainer center={[40.705, -73.995]} zoom={14} className="leaflet-host" scrollWheelZoom={false}>
       <TileLayer
-        attribution="&copy; OpenStreetMap contributors"
-        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution="&copy; OpenStreetMap contributors &copy; CARTO"
+        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
         eventHandlers={{
           tileerror: () => {
             failures.current += 1

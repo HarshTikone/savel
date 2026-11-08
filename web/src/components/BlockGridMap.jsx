@@ -20,8 +20,8 @@ export default function BlockGridMap({ homes, blocks = [], selectedId, onSelect,
         const list = homes.filter((h) => h.block === b).sort((a, c) => a.id.localeCompare(c.id))
         return (
           <g key={b} transform={`translate(${ox},${oy})`}>
-            <rect width={BW} height={BH + 14} rx="8" fill="none" stroke={on ? '#CBD5E1' : ALARM} strokeWidth="2" strokeDasharray={on ? undefined : '6 4'} />
-            <text x="8" y="16" fill="#475569" fontSize="12">{on ? `Block ${b}` : `Block ${b} · no power`}</text>
+            <rect width={BW} height={BH + 14} rx="8" fill="none" stroke={on ? '#3a3a3a' : ALARM} strokeWidth="2" strokeDasharray={on ? undefined : '6 4'} />
+            <text x="8" y="16" fill="#a1a1aa" fontSize="12">{on ? `Block ${b}` : `Block ${b} · no power`}</text>
             {list.map((h, i) => {
               const x = 24 + (i % 5) * 46
               const y = 34 + Math.floor(i / 5) * 54
@@ -51,7 +51,7 @@ export default function BlockGridMap({ homes, blocks = [], selectedId, onSelect,
                     strokeWidth={st.weight}
                     strokeDasharray={st.dashArray}
                   />
-                  <text x={x} y={y + 22} textAnchor="middle" fontSize="9" fill="#0F172A" fontWeight="700">{h.id.replace('H-', '')}</text>
+                  <text x={x} y={y + 22} textAnchor="middle" fontSize="9" fill="#111111" fontWeight="700">{h.id.replace('H-', '')}</text>
                 </g>
               )
             })}

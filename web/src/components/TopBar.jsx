@@ -1,4 +1,4 @@
-import { Activity, Radio, SlidersHorizontal, Bot } from 'lucide-react'
+import { Zap, Radio, SlidersHorizontal, Bot } from 'lucide-react'
 import { simClock, speedLabel } from '../lib/format'
 
 export default function TopBar({ page, state, connection }) {
@@ -6,7 +6,7 @@ export default function TopBar({ page, state, connection }) {
   return (
     <header className="topbar">
       <div className="brand">
-        <span className="logo" aria-hidden="true"><Activity size={18} /></span>
+        <span className="logo" aria-hidden="true"><Zap size={20} fill="currentColor" /></span>
         <span className="wordmark">SAVEL</span>
         <span className="tagline">Winter outage response</span>
         <span className="sim-chip">Simulation</span>

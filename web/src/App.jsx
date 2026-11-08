@@ -6,10 +6,16 @@ import { useSim } from './hooks/useSim'
 import TopBar from './components/TopBar'
 import ResponderPage from './pages/ResponderPage'
 import SimulationPage from './pages/SimulationPage'
+import AgentPage from './pages/AgentPage'
 import { helpHome } from './services/api'
 
 function usePage() {
-  const read = () => (window.location.hash.startsWith('#/sim') ? 'sim' : 'responder')
+  const read = () => {
+    const h = window.location.hash
+    if (h.startsWith('#/sim')) return 'sim'
+    if (h.startsWith('#/agent')) return 'agent'
+    return 'responder'
+  }
   const [page, setPage] = useState(read)
   useEffect(() => {
     const on = () => setPage(read())
@@ -43,6 +49,8 @@ export default function App() {
       <TopBar page={page} state={data.state} connection={data.connection} />
       {page === 'sim' ? (
         <SimulationPage data={data} sim={sim} onHelp={onHelp} helpPending={helpPending} />
+      ) : page === 'agent' ? (
+        <AgentPage data={data} voice={voice} />
       ) : (
         <ResponderPage data={data} voice={voice} trends={trends} onHelp={onHelp} helpPending={helpPending} />
       )}

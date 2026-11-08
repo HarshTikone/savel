@@ -6,10 +6,16 @@ import { reachedNow, rankedHomes, STORY_STEPS } from '../lib/story'
 import { homeColor, STATUS_COLOR } from '../lib/colors'
 
 vi.mock('../components/HomeMap', () => ({ default: () => <div data-testid="map" /> }))
+vi.mock('../hooks/useCalls', () => ({ useCalls: () => [
+  { home_id: 'H-13', phase: 'in_call', source: 'live', outcome: 'none', last: 'Resident: it is freezing' },
+  { home_id: 'H-27', phase: 'ringing', source: 'scripted', outcome: 'none', last: '' },
+  { home_id: 'H-14', phase: 'done', source: 'scripted', outcome: 'medical', last: '' },
+] }))
 vi.mock('../hooks/useSeries', () => ({ useSeries: () => ({ series: null, error: null, loading: false }) }))
 
 import ResponderPage from '../pages/ResponderPage'
 import SimulationPage from '../pages/SimulationPage'
+import AgentPage from '../pages/AgentPage'
 
 const base = { trend: 'falling', slope_f_per_h: -7.5, id: 'H-13', block: 'B', temp_f: 55, co_ppm: 0, power_on: false, heating: false, online: true,
   k_est: 0.14, status: 'warning', risk: 90, call_status: 'none', outcome: 'none', hours_to_50: 1.2, hours_to_60: 0, medical_needs: ['oxygen'] }
@@ -102,5 +108,15 @@ describe('calls board', () => {
     expect(screen.getByText('Medical')).toBeInTheDocument()
     fireEvent.click(screen.getByText('H-16'))
     expect(onSelect).toHaveBeenCalledWith('H-16')
+  })
+})
+
+describe('AI agent page', () => {
+  it('shows who the agent is calling right now and by area', () => {
+    render(<AgentPage data={data} voice={null} />)
+    expect(screen.getByText('Calling right now', { selector: '.tile-label' }).previousSibling.textContent).toBe('2')
+    expect(screen.getByText('Areas being called').previousSibling.textContent).toBe('2')
+    expect(screen.getByText('Resident: it is freezing')).toBeInTheDocument()
+    expect(screen.getByText('Medical')).toBeInTheDocument()
   })
 })

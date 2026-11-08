@@ -1,4 +1,4 @@
-import { Activity, Radio, SlidersHorizontal } from 'lucide-react'
+import { Activity, Radio, SlidersHorizontal, Bot } from 'lucide-react'
 import { simClock, speedLabel } from '../lib/format'
 
 export default function TopBar({ page, state, connection }) {
@@ -13,6 +13,9 @@ export default function TopBar({ page, state, connection }) {
       <nav className="tabs" aria-label="Pages">
         <a href="#/" className={page === 'responder' ? 'active' : ''} aria-current={page === 'responder' ? 'page' : undefined}>
           <Radio size={15} /> Responder
+        </a>
+        <a href="#/agent" className={page === 'agent' ? 'active' : ''} aria-current={page === 'agent' ? 'page' : undefined}>
+          <Bot size={15} /> AI Agent
         </a>
         <a href="#/sim" className={page === 'sim' ? 'active' : ''} aria-current={page === 'sim' ? 'page' : undefined}>
           <SlidersHorizontal size={15} /> Simulation

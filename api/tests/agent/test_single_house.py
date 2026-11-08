@@ -40,5 +40,5 @@ async def test_resolve_cancels_a_live_call_and_marks_helped(monkeypatch):
         await asyncio.sleep(0.02)
     m.resolve("H-21")
     await asyncio.sleep(0.1)
-    assert state.calls["H-21"] == {"call_status": "done", "outcome": "helped"}
+    assert state.calls["H-21"]["call_status"] == "done" and state.calls["H-21"]["outcome"] == "helped"
     assert "H-21" not in m._active and "H-21" not in m._live_waiters

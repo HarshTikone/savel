@@ -110,7 +110,7 @@ def all_views() -> list[dict]:
         out.append({"home_id": hid, "phase": v["phase"], "source": v["source"], "language": v["language"],
                     "last": v["transcript"][-1] if v["transcript"] else "",
                     "transcript": list(v["transcript"]), "extracted": v.get("extracted"),
-                    "ring_left_s": ring_left,
+                    "ring_left_s": ring_left, "result": v.get("result"),
                     "call_status": c.get("call_status", "none"), "outcome": c.get("outcome", "none")})
     out.sort(key=lambda x: (order.get(x["phase"], 2), x["home_id"]))
     return out
@@ -164,6 +164,7 @@ async def _finish(home: dict, run_id: str, source: str, lines: list[str], starte
     _set(hid, "done", outcome)
     v["extracted"] = ui_extracted(extracted)
     v["phase"] = "done"
+    v["result"] = outcome
     state.add_event("call_result", hid, f"{hid}: {extracted.get('summary') or outcome} (outcome: {outcome})", _sev(outcome))
     await _persist(run_id, hid, started, "done", source, lines, extracted, outcome)
 
@@ -218,7 +219,9 @@ def resolve(home_id: str) -> None:
     v = _views.get(home_id)
     if v and v["phase"] in ("ringing", "in_call", "extracting"):
         v["phase"] = "done"
-    _set(home_id, "done", "helped")
+    prev = state.calls.get(home_id) or {}
+    found = prev.get("call_result") or (prev.get("outcome") if prev.get("outcome") not in ("none", "helped") else None)
+    state.calls[home_id] = {"call_status": "done", "outcome": "helped", "call_result": found}
 
 
 DECLINED = object()   # sentinel result for a call the presenter declined
@@ -231,6 +234,15 @@ def mark_live_declined(home_id: str) -> bool:
         return False
     fut.set_result(DECLINED)
     return True
+
+
+def mark_live_ended(home_id: str) -> bool:
+    """The browser call hung up: show "reading the answers" until the transcript is processed."""
+    v = _views.get(home_id)
+    if v and v["phase"] == "in_call":
+        v["phase"] = "extracting"
+        return True
+    return False
 
 
 def mark_live_answered(home_id: str) -> bool:
@@ -317,6 +329,9 @@ async def _run(home_id: str, reason: str, run_id: str) -> None:
                     if _stale(run_id):
                         return
                     _set(home_id, "unreachable", "unreachable")
+                    v = _views.get(home_id)
+                    if v is not None:
+                        v["result"] = "unreachable"
                     state.add_event("call_result", home_id,
                                     f"{home_id}: resident did not answer; send help", "critical")
                     await _persist(run_id, home_id, first_sim, "unreachable", "live", [], None, "unreachable")
@@ -368,6 +383,9 @@ async def handle_live_transcript(home_id: str, lines: list[str]) -> bool:
         return True
     if not state.run_id or _active.get(home_id) == state.run_id:
         return False
+    v_prev = _views.get(home_id)
+    if v_prev and not _stale(v_prev["run_id"]) and v_prev["source"] == "live" and v_prev.get("result"):
+        return False            # already handled (browser transcript and webhook both arrive): ignore the copy
     # Presenter started a call outside a trigger (e.g. the Call resident button): process it directly.
     run_id, home, started = state.run_id, _home(home_id), state.sim_now
     _active[home_id] = run_id

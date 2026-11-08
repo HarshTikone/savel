@@ -76,5 +76,7 @@ export function useVoiceCall(homesById = {}) {
   }, [])
 
   const busy = status === 'connecting' || status === 'talking'
-  return { activeHome, status, error, liveLines, ended, busy, answer, decline, hangUp }
+  // A new ring for the house we last talked to starts fresh (old transcript and 'ended' do not carry over).
+  const forgetEnded = useCallback(() => { setEnded(false); setLiveLines([]); linesRef.current = [] }, [])
+  return { activeHome, status, error, liveLines, ended, busy, answer, decline, hangUp, forgetEnded }
 }

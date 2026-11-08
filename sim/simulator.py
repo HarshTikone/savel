@@ -46,7 +46,7 @@ CO_RISE = 60.0            # ppm per storm hour with a blocked vent and a running
 CO_FALL = 120.0           # ppm per storm hour once the vent is clear
 CO_TRIP, CO_UNTRIP, CO_CAP = 70.0, 5.0, 400.0
 NOISE_F = 0.25            # sensor noise, standard deviation in degrees F
-OUTLIER_P = 0.015         # chance a reading is a bad spike
+OUTLIER_P = 0.004         # chance a reading is a bad spike
 DROPOUT_P = 0.03          # chance a sensor misses one tick (never two in a row)
 LAG_MAX_MIN = 10          # storm minutes of stagger before each home in a block loses heat
 WIND_AMP = 0.12           # wind gusts change how fast every house in the storm loses heat
@@ -162,7 +162,7 @@ class Sim:
             if self.heating(hid):
                 t += (SETPOINT_F - t) * (1 - math.exp(-HEAT_RATE * dt_h))
             else:
-                self.kmul[hid] = max(0.8, min(1.25, 1.0 + 0.9 * (self.kmul[hid] - 1.0) + self.dyn.gauss(0, 0.015)))
+                self.kmul[hid] = max(0.8, min(1.25, 1.0 + 0.97 * (self.kmul[hid] - 1.0) + self.dyn.gauss(0, 0.012)))
                 k = h["k_per_hour"] * self.kmul[hid] * self.wind()
                 t = self.outdoor_f + (t - self.outdoor_f) * math.exp(-k * dt_h)
             self.temp[hid] = t
@@ -182,7 +182,7 @@ class Sim:
             self.skipped.discard(hid)
             temp = self.temp[hid] + self.noise.gauss(0, NOISE_F)
             if self.noise.random() < OUTLIER_P:
-                temp += self.noise.choice([-1, 1]) * self.noise.uniform(2.0, 4.0)
+                temp += self.noise.choice([-1, 1]) * self.noise.uniform(1.5, 3.0)
             rows.append({
                 "time": ts, "home_id": hid,
                 "temp_f": round(temp, 2),
@@ -208,9 +208,14 @@ class Sim:
             suffix = int(self.run_id.rsplit("-", 1)[1]) + 1 if self.run_id.startswith(rid + "-") else 2
             rid = f"{rid}-{suffix}"
         self.run_id = rid
-        self.noise = random.Random(SEED + 1)
-        self.dyn = random.Random(SEED + 2)
-        self.kmul = {h["id"]: 1.0 for h in self.homes}
+        # Every run is a little different: houses start at slightly different temperatures and lose
+        # heat at slightly different rates (drafts, curtains, how full the house is).
+        self.resets = getattr(self, "resets", 0) + 1
+        vary = random.Random(SEED * 1000 + self.resets * 7919)
+        self.noise = random.Random(vary.random())
+        self.dyn = random.Random(vary.random())
+        self.kmul = {h["id"]: round(vary.uniform(0.88, 1.12), 3) for h in self.homes}
+        self.start_jitter = {h["id"]: round(vary.uniform(-0.8, 0.8), 2) for h in self.homes}
         self.cut_at = {b: None for b in BLOCKS}
         self.skipped = set()
         self.house_off = set()
@@ -218,7 +223,7 @@ class Sim:
         self.outdoor_f = OUTDOOR_F
         self.power = {b: True for b in BLOCKS}
         for h in self.homes:
-            self.temp[h["id"]] = h["initial_temp_f"]
+            self.temp[h["id"]] = h["initial_temp_f"] + self.start_jitter[h["id"]]
             self.co[h["id"]] = 0.0
             self.vent_blocked[h["id"]] = False
             self.tripped[h["id"]] = False

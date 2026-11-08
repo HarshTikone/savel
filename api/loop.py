@@ -13,6 +13,7 @@ from api.queries import HOMES_SQL, INSERT_PRED_SQL, fetch_k_fit, fetch_latest
 from api.risk import risk_score
 from api.simctl import SPEEDUP, sim_state
 from api.state import state
+from api.trends import WINDOW_SQL, classify
 
 log = logging.getLogger("api.loop")
 LOOP_SECONDS = float(os.getenv("LOOP_SECONDS", "2"))
@@ -56,6 +57,18 @@ def _power_events(blocks: list[dict]) -> None:
             state.prev_power[name] = on
 
 
+MEDIAN_N = 5                 # displayed temperature = median of the last 5 readings
+TREND_N = 10                 # trend = robust line through the last 10 readings
+
+
+async def _fetch_windows(pool, run_id, sim_now, ids):
+    rows = await pool.fetch(WINDOW_SQL, run_id, ids, sim_now, TREND_N)
+    out: dict[str, list[tuple[float, float]]] = {}
+    for r in rows:
+        out.setdefault(r["home_id"], []).append((float(r["t"]), float(r["temp_f"])))
+    return out
+
+
 async def compute_homes() -> None:
     async with _lock:
         await _compute()
@@ -78,6 +91,7 @@ async def _compute() -> None:
     homes = await _static_homes(pool)
     latest = await fetch_latest(pool, run_id)
     fits = await fetch_k_fit(pool, run_id, sim_now)
+    windows = await _fetch_windows(pool, run_id, sim_now, [h["id"] for h in homes])
     if state.run_id != run_id:
         return  # a reset landed mid-cycle; the next cycle handles the new run
     positive = [k for k in fits.values() if k > 0]
@@ -96,6 +110,7 @@ async def _compute() -> None:
         else:
             k_est, k_source = None, None
         k_calc = k_est if k_est is not None else DEFAULT_K
+        trend = {"label": "falling", "slope_f_per_h": None}   # silent homes in the dark are assumed to cool
 
         if last is None:
             # Never reported in this run (no battery, block dark since the run began):
@@ -111,6 +126,10 @@ async def _compute() -> None:
             power_on, heating = bool(last["power_on"]), bool(last["heating"])
             silent_s = (sim_now - last["time"]).total_seconds()
             online = silent_s <= offline_after
+            pts = windows.get(hid, [])
+            if online and pts:
+                temp = median([v for _, v in pts[-MEDIAN_N:]])   # one noisy reading or spike can't move it
+            trend = classify(pts) if online and not heating else trend
             if not online:
                 power_on = block_power.get(h["block"], power_on) and hid not in houses_off
                 if not power_on:
@@ -118,14 +137,23 @@ async def _compute() -> None:
                 if not heating and k_calc > 0:
                     temp = estimate(temp, out, k_calc, silent_s / 3600)
 
+        slope = trend.get("slope_f_per_h")
+        declining = (not heating) and (trend.get("label") in ("declining", "slowing", "falling", "insufficient")
+                                       or (slope is not None and slope <= -1.0))
+        # Countdown from the robust trend when we have one (k = -slope / (T - outdoor)), else the fit.
+        k_pred = None
+        if declining and slope is not None and slope < 0 and temp - out > 1:
+            k_pred = -slope / (temp - out)
+        elif declining and k_est is not None:
+            k_pred = k_calc
         h60 = h50 = None
-        if not heating and k_est is not None:   # predict only once a cooling rate is learned
-            h60 = hours_to(temp, out, 60, k_calc)
-            h50 = hours_to(temp, out, 50, k_calc)
+        if k_pred:
+            h60 = hours_to(temp, out, 60, k_pred)
+            h50 = hours_to(temp, out, 50, k_pred)
         call = state.calls.get(hid)
         call_status = (call or {}).get("call_status", "none")
         outcome = (call or {}).get("outcome", "none")
-        st = status(temp, co, heating, h50, outcome)
+        st = status(temp, co, heating, h50, outcome, declining)
         home = {
             "id": hid, "block": h["block"], "lat": h["lat"], "lon": h["lon"],
             "temp_f": round(temp, 2), "co_ppm": round(co, 2), "power_on": power_on, "heating": heating,
@@ -133,6 +161,8 @@ async def _compute() -> None:
             "hours_to_60": None if h60 is None else round(h60, 2),
             "hours_to_50": None if h50 is None else round(h50, 2),
             "status": st, "risk": 0, "call_status": call_status, "outcome": outcome,
+            "trend": "heating" if heating else ("falling" if declining else "holding"),
+            "slope_f_per_h": None if slope is None or heating else round(slope, 2),
             "age_band": h["age_band"],
             "medical_needs": [m for m in (h["medical_needs"] or "").split(",") if m],
             "language": h["language"],

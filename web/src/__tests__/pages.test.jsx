@@ -11,7 +11,7 @@ vi.mock('../hooks/useSeries', () => ({ useSeries: () => ({ series: null, error: 
 import ResponderPage from '../pages/ResponderPage'
 import SimulationPage from '../pages/SimulationPage'
 
-const base = { id: 'H-13', block: 'B', temp_f: 55, co_ppm: 0, power_on: false, heating: false, online: true,
+const base = { trend: 'falling', slope_f_per_h: -7.5, id: 'H-13', block: 'B', temp_f: 55, co_ppm: 0, power_on: false, heating: false, online: true,
   k_est: 0.14, status: 'warning', risk: 90, call_status: 'none', outcome: 'none', hours_to_50: 1.2, hours_to_60: 0, medical_needs: ['oxygen'] }
 
 describe('story', () => {
@@ -30,7 +30,7 @@ describe('story', () => {
       { type: 'threshold', home_id: 'H-13' },
       { type: 'house_power_cut', home_id: 'H-13' },
     ]
-    const r = reachedNow({ ...base, status: 'cooling', k_est: null }, 1, events)
+    const r = reachedNow({ ...base, status: 'cooling' }, 1, events)
     expect([...r]).toEqual(['cut', 'cooling'])
   })
   it('helped and heated homes leave the priority list', () => {

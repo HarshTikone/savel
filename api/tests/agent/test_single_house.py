@@ -11,11 +11,15 @@ def test_recovering_until_comfortable():
     assert status(61.9, 0, True, None, "none") == "recovering"
     assert status(63.0, 0, True, None, "helped") == "heated"
     assert status(48.0, 0, False, 0.5, "none") == "critical"
+    assert status(58.0, 0, False, 3.0, "none", declining=True) == "warning"
+    assert status(58.0, 0, False, 0.5, "none", declining=True) == "warning"     # critical means below 50F
+    assert status(58.0, 0, False, None, "none", declining=False) == "cooling"   # holding steady
+    assert status(64.0, 0, False, 1.0, "none", declining=True) == "cooling"    # falling, not yet 60
     assert status(48.0, 40, True, None, "helped") == "critical"   # CO still wins
 
 
 def test_helped_home_drops_out_of_the_queue():
-    home = {"temp_f": 45.0, "co_ppm": 0, "heating": True, "hours_to_50": None,
+    home = {"temp_f": 45.0, "co_ppm": 0, "heating": True, "hours_to_50": None, "status": "critical",
             "age_band": "75+", "medical_needs": ["oxygen"], "online": True}
     assert risk_score(home, {"call_status": "done", "outcome": "helped"}) == 0
     assert risk_score(home, {"call_status": "done", "outcome": "medical"}) > 0

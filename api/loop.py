@@ -140,8 +140,10 @@ async def _compute() -> None:
                     temp = estimate(temp, out, k_calc, silent_s / 3600)
 
         slope = trend.get("slope_f_per_h")
+        power_now = block_power.get(h["block"], True) and hid not in houses_off   # simulator truth, no report lag
         declining = (not heating) and (trend.get("label") in ("declining", "slowing", "falling", "insufficient")
-                                       or (slope is not None and slope <= -1.0))
+                                       or (slope is not None and slope <= -1.0)
+                                       or (not power_now and slope is not None and slope < 0))
         # Countdown from the robust trend when we have one (k = -slope / (T - outdoor)), else the fit.
         k_pred = None
         if declining and slope is not None and slope < 0 and temp - out > 1:
@@ -153,7 +155,6 @@ async def _compute() -> None:
             h60 = hours_to(temp, out, 60, k_pred)
             h50 = hours_to(temp, out, 50, k_pred)
         call = state.calls.get(hid)
-        power_now = block_power.get(h["block"], True) and hid not in houses_off   # simulator truth, no report lag
         if call and call.get("outcome") == "helped" and not power_now:
             # The house lost power again after help: a new incident, so start fresh.
             state.calls.pop(hid, None)
@@ -161,6 +162,8 @@ async def _compute() -> None:
         call_status = (call or {}).get("call_status", "none")
         outcome = (call or {}).get("outcome", "none")
         st = status(temp, co, heating, h50, outcome, declining)
+        if outcome == "helped" and power_now and co < 35 and st in ("cooling", "warning", "critical"):
+            st = "recovering"     # power is back; the next sensor report will show the furnace running
         home = {
             "id": hid, "block": h["block"], "lat": h["lat"], "lon": h["lon"],
             "temp_f": round(temp, 2), "co_ppm": round(co, 2), "power_on": power_on, "heating": heating,

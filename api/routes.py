@@ -126,10 +126,11 @@ async def help_delivered(home_id: str):
     """A responder reached the home: close its call, bring its power back, let it warm up."""
     home_id = _validate("cut_house", home_id)
     manager.resolve(home_id)
-    try:
-        await sim_post("restore_house", home_id)
-    except HTTPException:
-        log.warning("restore_house failed for %s", home_id)
+    for action in ("restore_house", "clear_vent"):   # the responder restores power and clears a blocked vent
+        try:
+            await sim_post(action, home_id)
+        except HTTPException:
+            log.warning("%s failed for %s", action, home_id)
     state.add_event("help_delivered", home_id, f"Help delivered at {home_id}; power restored", "info")
     await _refresh()
     return {"home_id": home_id, "outcome": "helped"}

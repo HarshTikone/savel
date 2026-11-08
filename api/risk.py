@@ -29,8 +29,8 @@ def risk_score(home: dict, call: dict | None) -> int:
 
     if outcome == "leaving":
         return LEAVING_SCORE
-    if outcome == "helped":
-        return HELPED_SCORE
+    if outcome == "helped" and (home.get("co_ppm") or 0.0) < 35:
+        return HELPED_SCORE              # carbon monoxide still counts after help, until the air clears
 
     temp = home.get("temp_f")
     co = home.get("co_ppm") or 0.0

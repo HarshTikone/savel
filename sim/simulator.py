@@ -170,7 +170,7 @@ class Sim:
             self.temp[hid] = t
         self.sim_now += timedelta(seconds=dt_s)
 
-    def batch(self) -> list[dict]:
+    def batch(self, allow_drop: bool = True) -> list[dict]:
         ts = self.sim_now.strftime("%Y-%m-%dT%H:%M:%SZ")
         rows = []
         for h in self.homes:
@@ -178,7 +178,7 @@ class Sim:
             power_on = self.mains(hid)
             if not power_on and not h["battery"]:
                 continue  # sensor offline: no mains, no battery
-            if hid not in self.skipped and self.noise.random() < DROPOUT_P:
+            if allow_drop and hid not in self.skipped and self.noise.random() < DROPOUT_P:
                 self.skipped.add(hid)
                 continue  # one missed reading (radio glitch)
             self.skipped.discard(hid)
@@ -242,7 +242,7 @@ class Sim:
             if rest:
                 self.step(rest * 60)
         self.last_report = self.sim_now
-        await self.post(self.batch())        # first report of the run right away
+        await self.post(self.batch(allow_drop=False))   # first report of the run: every home, right away
         log.info("reset run_id=%s prewarm=%s sim_now=%s", rid, prewarm, self.sim_now.isoformat())
         return {"run_id": rid, "sim_now": iso(self.sim_now), "speed": self.speed, "prewarm": prewarm}
 

@@ -236,6 +236,12 @@ def mark_live_declined(home_id: str) -> bool:
     return True
 
 
+def live_call_open(home_id: str) -> bool:
+    """A live call for this home is ringing or connected (so a browser transcript belongs to it)."""
+    fut = _live_waiters.get(home_id)
+    return bool(fut and not fut.done())
+
+
 def mark_live_ended(home_id: str) -> bool:
     """The browser call hung up: show "reading the answers" until the transcript is processed."""
     v = _views.get(home_id)

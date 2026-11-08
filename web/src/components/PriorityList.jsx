@@ -44,7 +44,7 @@ export default function PriorityList({ homes, selectedId, onSelect, onHelp, pend
               </span>
               <span className="prow-sub">
                 <span>{temp(h.temp_f)}</span>
-                {h.hours_to_50 != null && <span>50°F in {stormDuration(h.hours_to_50)}</span>}
+                {h.temp_f < 50 ? <span>Below 50°F</span> : h.hours_to_50 != null && <span>50°F in {stormDuration(h.hours_to_50)}</span>}
                 {h.call_status !== 'none' && <span className="call-tag"><Phone size={11} /> {h.outcome !== 'none' ? OUTCOME_LABEL[h.outcome] : CALL_STATUS_LABEL[h.call_status]}</span>}
               </span>
               <span className="riskbar" aria-label={`Risk ${h.risk} of 100`}><span style={{ width: `${h.risk}%` }} /></span>

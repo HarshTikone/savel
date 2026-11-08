@@ -4,6 +4,14 @@ import { stormDuration, temp, ppm } from '../lib/format'
 
 const LANG = { en: 'English', es: 'Spanish', ar: 'Arabic', bn: 'Bengali' }
 
+// Countdown text: already past the line, still falling, or holding.
+function countdown(home, line, hours) {
+  if (home.heating) return '—'
+  if (home.temp_f != null && home.temp_f < line) return `Below ${line}°F`
+  if (hours == null) return home.trend === 'falling' ? 'Measuring…' : 'Not falling'
+  return stormDuration(hours)
+}
+
 function Stat({ icon: Icon, label, value, tone }) {
   return (
     <div className={`stat${tone ? ` ${tone}` : ''}`}>
@@ -37,8 +45,8 @@ export default function HouseCard({ home, rank, onHelp, helpPending, incidentOve
       </div>
       <div className="stats">
         <Stat icon={Thermometer} label="Trend" value={trendText} tone={home.trend === 'falling' ? 'bad' : ''} />
-        <Stat icon={Clock} label="Reaches 60°F" value={home.heating ? '—' : home.hours_to_60 == null ? (home.trend === 'falling' ? 'Measuring…' : 'Not falling') : stormDuration(home.hours_to_60)} />
-        <Stat icon={Clock} label="Reaches 50°F" value={home.heating ? '—' : home.hours_to_50 == null ? (home.trend === 'falling' ? 'Measuring…' : 'Not falling') : stormDuration(home.hours_to_50)} tone={home.hours_to_50 != null && home.hours_to_50 < 1 ? 'bad' : ''} />
+        <Stat icon={Clock} label="Reaches 60°F" value={countdown(home, 60, home.hours_to_60)} tone={!home.heating && home.temp_f < 60 ? 'bad' : ''} />
+        <Stat icon={Clock} label="Reaches 50°F" value={countdown(home, 50, home.hours_to_50)} tone={!home.heating && (home.temp_f < 50 || (home.hours_to_50 != null && home.hours_to_50 < 1)) ? 'bad' : ''} />
         <Stat icon={Wind} label="CO" value={ppm(home.co_ppm)} tone={home.co_ppm >= 35 ? 'bad' : ''} />
       </div>
       <div className="people">

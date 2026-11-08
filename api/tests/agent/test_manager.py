@@ -333,3 +333,7 @@ async def test_browser_transcript_finishes_call_and_webhook_copy_is_ignored(setu
     await settle("H-35b")
     assert state.calls["H-35b"]["outcome"] == "needs_help"
     assert not await m.handle_live_transcript("H-35b", lines)      # webhook copy arrives later
+
+
+async def test_browser_transcript_needs_an_open_live_call(setup):
+    assert not m.live_call_open("H-05")

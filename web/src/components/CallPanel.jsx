@@ -69,7 +69,7 @@ export function IncomingCalls({ calls = [], voice, homesById = {} }) {
                 <div className="ring-info">
                   <span className="ring-dot" />
                   <span>
-                    <strong>{c.home_id}</strong>{h ? <span className="muted"> · Block {h.block} · {h.temp_f != null ? `${h.temp_f.toFixed(1)}°F` : ''}</span> : null}
+                    <strong>{c.home_id}</strong>{h ? <span className="muted">Block {h.block}{h.temp_f != null ? ` · ${h.temp_f.toFixed(1)}°F` : ''}</span> : null}
                     <span className="ring-left">{c.ring_left_s != null ? `Ringing · drops in ${c.ring_left_s} s` : 'Ringing'}</span>
                   </span>
                 </div>

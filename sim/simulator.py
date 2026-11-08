@@ -126,6 +126,7 @@ class Sim:
         self.cut_at: dict[str, datetime | None] = {b: None for b in BLOCKS}
         self.skipped: set[str] = set()
         self.house_off: set[str] = set()   # single homes with their own power cut
+        self.house_on: set[str] = set()    # homes a responder powered back up while their block is dark
         self.last_report = LIVE_START
 
     # -- physics
@@ -133,6 +134,8 @@ class Sim:
         """Does this home still have power? A block cut reaches each home a few minutes apart."""
         if hid in self.house_off:
             return False
+        if hid in self.house_on:
+            return True
         block = self.by_id[hid]["block"]
         if self.power[block]:
             return True
@@ -221,6 +224,7 @@ class Sim:
         self.cut_at = {b: None for b in BLOCKS}
         self.skipped = set()
         self.house_off = set()
+        self.house_on = set()
         self.speed = SPEEDUP
         self.outdoor_f = OUTDOOR_F
         self.power = {b: True for b in BLOCKS}
@@ -251,6 +255,7 @@ class Sim:
             "run_id": self.run_id, "sim_now": iso(self.sim_now), "outdoor_f": self.outdoor_f,
             "speed": self.speed, "blocks": [{"block": b, "power_on": self.power[b]} for b in BLOCKS],
             "houses_off": sorted(self.house_off),
+            "houses_on": sorted(self.house_on),
             "report_every_s": int(REPORT_MIN * 60),
         }
 
@@ -324,6 +329,16 @@ async def restore_power(block: str):
 async def cut_house(home_id: str):
     async with sim.lock:
         sim.house_off.add(_home(home_id))
+        sim.house_on.discard(home_id)
+    return sim.state()
+
+
+@app.post("/power_house/{home_id}")
+async def power_house(home_id: str):
+    """Help delivered: this home has heat again even if its whole block is still dark."""
+    async with sim.lock:
+        sim.house_off.discard(_home(home_id))
+        sim.house_on.add(home_id)
     return sim.state()
 
 

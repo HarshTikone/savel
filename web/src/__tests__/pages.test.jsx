@@ -176,3 +176,14 @@ describe('story lifecycle', () => {
     expect(steps.find((s) => s.key === 'ranked').state).toBe('done')
   })
 })
+
+describe('priority ties', () => {
+  it('homes at the risk cap are ordered coldest first', () => {
+    const list = rankedHomes([
+      { ...base, id: 'H-17', risk: 100, temp_f: 51 },
+      { ...base, id: 'H-01', risk: 100, temp_f: 50 },
+      { ...base, id: 'H-10', risk: 100, temp_f: 44 },
+    ])
+    expect(list.map((h) => h.id)).toEqual(['H-10', 'H-01', 'H-17'])
+  })
+})

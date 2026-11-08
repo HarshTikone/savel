@@ -33,6 +33,7 @@ export default function CallsBoard({ calls, selectedId, onSelect }) {
                 <span className="call-card-phase"><p.icon size={13} /> {p.label}{c.phase === 'ringing' && c.ring_left_s != null ? ` · ${c.ring_left_s}s` : ''}</span>
                 {outcome && <span className={`call-card-out ${['needs_help', 'medical', 'unreachable'].includes(res) ? 'bad' : ''}`}>{outcome}</span>}
                 {c.outcome === 'helped' && <span className="call-card-out">✓ Help delivered</span>}
+                {!res && c.phase === 'done' && c.outcome !== 'helped' && /cancelled/i.test(c.last || '') && <span className="call-card-phase">Cancelled · heat is back</span>}
               </button>
             </li>
           )

@@ -225,6 +225,16 @@ def resolve(home_id: str) -> None:
 
 
 DECLINED = object()   # sentinel result for a call the presenter declined
+CANCELLED = object()  # sentinel: the house got its heat back while the phone was still ringing
+
+
+def cancel_ringing(home_id: str) -> bool:
+    """Power came back on its own before anyone answered: stop ringing, no 'not answered' result."""
+    fut = _live_waiters.get(home_id)
+    if not fut or fut.done() or home_id in _live_answered:
+        return False
+    fut.set_result(CANCELLED)
+    return True
 
 
 def mark_live_declined(home_id: str) -> bool:
@@ -292,6 +302,12 @@ async def _live_attempt(home: dict, run_id: str, started) -> bool | None:
         if SLOW_FOR_LIVE:
             await set_live_call(False)
     if _stale(run_id):
+        return True
+    if lines is CANCELLED:
+        v["phase"] = "done"
+        v["transcript"].append("SAVEL: Power came back before anyone answered; call cancelled.")
+        _set(hid, "none", "none")
+        state.add_event("call_result", hid, f"{hid}: heat is back; call cancelled", "info")
         return True
     if lines is None or lines is DECLINED:
         v["phase"] = "no_answer"

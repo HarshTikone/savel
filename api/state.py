@@ -17,7 +17,7 @@ class State:
         self.sim_now: datetime | None = None
         self.homes_cache: list[dict] = []
         self.episodes: set[str] = set()
-        self.events: deque[dict] = deque(maxlen=20)
+        self.events: deque[dict] = deque(maxlen=60)
         self.calls: dict[str, dict] = {}          # home_id -> {call_status, outcome}
         self.live_calls = 0
         self.saved_speed: int | None = None

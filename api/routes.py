@@ -126,7 +126,7 @@ async def help_delivered(home_id: str):
     """A responder reached the home: close its call, bring its power back, let it warm up."""
     home_id = _validate("cut_house", home_id)
     manager.resolve(home_id)
-    for action in ("restore_house", "clear_vent"):   # the responder restores power and clears a blocked vent
+    for action in ("power_house", "clear_vent"):   # the responder restores heat (even in a dark block) and clears a blocked vent
         try:
             await sim_post(action, home_id)
         except HTTPException:
@@ -138,7 +138,7 @@ async def help_delivered(home_id: str):
 
 @router.get("/api/events")
 async def events():
-    return list(reversed(state.events))[:20]
+    return list(reversed(state.events))[:30]
 
 
 @router.get("/api/accuracy")

@@ -21,7 +21,7 @@ export function rankOf(homes, id) {
 export function rankedHomes(homes) {
   return [...homes]
     .filter((h) => h.risk > 0 && h.outcome !== 'helped' && !['heated', 'leaving', 'recovering'].includes(h.status))
-    .sort((a, b) => b.risk - a.risk || (a.hours_to_50 ?? 99) - (b.hours_to_50 ?? 99) || a.id.localeCompare(b.id))
+    .sort((a, b) => b.risk - a.risk || a.temp_f - b.temp_f || (a.hours_to_50 ?? 99) - (b.hours_to_50 ?? 99) || a.id.localeCompare(b.id))
 }
 
 function hasEvent(events, type, id) {

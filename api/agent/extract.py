@@ -11,7 +11,13 @@ import re
 
 log = logging.getLogger("api.agent.extract")
 
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
+GEMINI_FALLBACK_MODEL = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3.1-flash-lite")
+
+
+def gemini_models() -> list[str]:
+    """Primary model first, then the backup (a 404 or 503 on one should not drop us to keywords)."""
+    return [m for m in dict.fromkeys([os.getenv("GEMINI_MODEL", GEMINI_MODEL), GEMINI_FALLBACK_MODEL]) if m]
 GEMINI_TIMEOUT_S = float(os.getenv("GEMINI_TIMEOUT_S", "12"))
 FIELDS = ("has_heat", "needs_help", "medical_issue", "can_leave")
 
@@ -91,11 +97,18 @@ def _gemini_sync(text: str) -> dict:
     from google import genai
     from google.genai import types
     client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-    resp = client.models.generate_content(
-        model=GEMINI_MODEL, contents=PROMPT + text,
-        config=types.GenerateContentConfig(response_mime_type="application/json",
-                                           response_schema=SCHEMA, temperature=0))
-    return json.loads(resp.text)
+    last = None
+    for model in gemini_models():
+        try:
+            resp = client.models.generate_content(
+                model=model, contents=PROMPT + text,
+                config=types.GenerateContentConfig(response_mime_type="application/json",
+                                                   response_schema=SCHEMA, temperature=0))
+            return json.loads(resp.text)
+        except Exception as e:
+            log.warning("gemini model %s failed (%s)", model, type(e).__name__)
+            last = e
+    raise last
 
 
 def _clean(d: dict, source: str) -> dict:

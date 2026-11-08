@@ -9,6 +9,7 @@ import os
 from fastapi import APIRouter, HTTPException
 
 from api.agent import manager
+from api.agent.extract import gemini_models
 from api.state import state
 
 log = logging.getLogger("api.agent.briefing")
@@ -51,9 +52,16 @@ def _gemini_sync(prompt: str) -> str:
     from google import genai
     from google.genai import types
     client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-    r = client.models.generate_content(model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"), contents=prompt,
-                                       config=types.GenerateContentConfig(temperature=0.2))
-    return (r.text or "").strip()
+    last = None
+    for model in gemini_models():
+        try:
+            r = client.models.generate_content(model=model, contents=prompt,
+                                               config=types.GenerateContentConfig(temperature=0.2))
+            return (r.text or "").strip()
+        except Exception as e:
+            log.warning("gemini model %s failed (%s)", model, type(e).__name__)
+            last = e
+    raise last
 
 
 async def _write(prompt: str, fallback: str) -> tuple[str, str]:

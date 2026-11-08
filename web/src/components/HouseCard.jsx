@@ -1,5 +1,6 @@
 import { Check, Thermometer, Wind, Clock, User, HeartPulse, Languages, WifiOff, Zap, ZapOff } from 'lucide-react'
 import StatusPill from './StatusPill'
+import Briefing from './Briefing'
 import { stormDuration, temp, ppm } from '../lib/format'
 
 const LANG = { en: 'English', es: 'Spanish', ar: 'Arabic', bn: 'Bengali' }
@@ -64,6 +65,7 @@ export default function HouseCard({ home, rank, onHelp, helpPending, incidentOve
           <Check size={18} strokeWidth={3} /> {helpPending ? 'Sending…' : 'Mark help delivered'}
         </button>
       )}
+      <Briefing home={home} />
       {children}
     </div>
   )

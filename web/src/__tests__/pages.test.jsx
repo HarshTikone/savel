@@ -226,3 +226,18 @@ describe('reload', () => {
     expect(callSettled({ ...base, id: 'H-02', status: 'heated', outcome: 'helped' }, 'r11', 0)).toBe(true)
   })
 })
+
+import Briefing from '../components/Briefing'
+import * as api from '../services/api'
+
+describe('responder briefing', () => {
+  it('writes a briefing on click and shows who wrote it', async () => {
+    const spy = vi.spyOn(api, 'getBriefing').mockResolvedValue({ home_id: 'H-13', text: "H-13, 75+, on oxygen, 48F and falling, didn't answer. No answer: send someone in person now.", source: 'gemini' })
+    render(<Briefing home={{ ...base }} />)
+    fireEvent.click(screen.getByText('Responder briefing'))
+    expect(await screen.findByText(/send someone in person now/)).toBeInTheDocument()
+    expect(screen.getByText('Gemini')).toBeInTheDocument()
+    expect(spy).toHaveBeenCalledWith('H-13')
+    spy.mockRestore()
+  })
+})

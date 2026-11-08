@@ -184,3 +184,4 @@ PENDING HUMAN: push (403 for shaw-piyush on HarshTikone/savel), PR backend -> ma
 - Caddy DOMAIN is required (compose fails fast if unset).
 - Added scripts/rehearse.py (3-run determinism check) used for the rehearsal step.
 - Sample responses in docs/samples/ were captured 20 s after a reset with H-27's vent blocked for 10 s.
+- Deploy fix (found on first VM boot): a fresh TimescaleDB restarts after its init scripts, so a socket-based `pg_isready` passed early and the api's seed step failed (0 homes). Seed now retries for ~60 s and the dev healthcheck uses TCP (`-h 127.0.0.1`). httpx request logging silenced in the api.

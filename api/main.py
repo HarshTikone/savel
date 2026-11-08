@@ -12,6 +12,7 @@ from api import calls, db, ingest, loop, routes, trends
 from api.state import state
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s api %(levelname)s %(message)s")
+logging.getLogger("httpx").setLevel(logging.WARNING)  # no per-request noise from the sim poll
 log = logging.getLogger("api")
 
 

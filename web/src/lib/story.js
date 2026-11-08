@@ -102,11 +102,15 @@ export function stepDetail(key, home, rank) {
 // for as long as the timeline stays green (then the timeline resets too). Kept outside React.
 const SETTLE_MS = 12000
 const settledSince = new Map()   // `${runId}|${homeId}` -> first time seen helped + heated
+const observed = new Set()        // houses this page has already seen (so a reload doesn't replay)
 export function callSettled(home, runId, now = Date.now()) {
   if (!home) return false
   const key = `${runId}|${home.id}`
+  const firstLook = !observed.has(key)
+  observed.add(key)
   if (home.outcome !== 'helped' || home.status !== 'heated') { settledSince.delete(key); return false }
-  if (!settledSince.has(key)) settledSince.set(key, now)
+  // Already settled when the page opened: gone at once. Settled while watching: stays 12 s, like the timeline.
+  if (!settledSince.has(key)) settledSince.set(key, firstLook ? now - SETTLE_MS - 1 : now)
   return now - settledSince.get(key) > SETTLE_MS
 }
-export function _resetSettledForTests() { settledSince.clear() }
+export function _resetSettledForTests() { settledSince.clear(); observed.clear() }

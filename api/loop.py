@@ -112,6 +112,8 @@ async def _compute() -> None:
             online = silent_s <= offline_after
             if not online:
                 power_on = block_power.get(h["block"], power_on)
+                if not power_on:
+                    heating = False  # the sensor went quiet and its block has no power: no heat either
                 if not heating and k_calc > 0:
                     temp = estimate(temp, out, k_calc, silent_s / 3600)
 

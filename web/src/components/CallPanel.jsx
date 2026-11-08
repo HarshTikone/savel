@@ -78,7 +78,14 @@ export default function CallPanel({ call, events = [], highlight, voice }) {
       </div>
     )
   }
-  const lines = (call.transcript || []).map(transcriptLine).filter((l) => l !== null)
+  // While the browser call is open (and until the webhook delivers the real transcript) follow it live.
+  const followLive = voice && call.source === 'live' && ['ringing', 'in_call'].includes(call.phase)
+    && (voice.status === 'talking' || voice.status === 'connecting' || voice.ended)
+  const shownPhase = followLive
+    ? (voice.ended ? 'extracting' : voice.status === 'talking' ? 'in_call' : 'ringing')
+    : call.phase
+  const source = followLive && voice.liveLines.length ? voice.liveLines : call.transcript || []
+  const lines = source.map(transcriptLine).filter((l) => l !== null)
   const chips = extractedChips(call.extracted)
   return (
     <div className={`call${highlight ? ' highlight' : ''}`}>
@@ -90,7 +97,7 @@ export default function CallPanel({ call, events = [], highlight, voice }) {
         <span className="muted">Language: {call.language || 'Unavailable'}</span>
       </div>
       <VoiceToggle voice={voice} />
-      <Stepper phase={call.phase} />
+      <Stepper phase={shownPhase} />
       {lines.length === 0 ? (
         <p className="muted">Waiting for transcript…</p>
       ) : (

@@ -27,9 +27,9 @@ Optional: show `GET /api/homes/{id}/briefing` in home details and `GET /api/inci
 ## Piyush
 - Loop contract is unchanged (`risk_score`, `trigger_call`, `set_live_call`).
 - Known: seed race on first `compose up` (frontend reported it).
-- New optional env: `LIVE_HOMES=H-13` (which home gets the live browser call), `LIVE_CALL_WAIT_S=180`, `ELEVENLABS_WEBHOOK_SECRET`, `GEMINI_API_KEY`.
+- New optional env: `LIVE_HOMES=H-13` (which home gets the live browser call), `LIVE_CALL_WAIT_S=420`, `ELEVENLABS_WEBHOOK_SECRET`, `GEMINI_API_KEY`.
 - `google-genai` was added to api/requirements.txt; rebuild the api image.
 
 ## Demo behaviour
-- H-13 (live home): rings in the dashboard, slows the sim to 30x, waits up to 3 minutes for a browser call. No call finishes in time: it falls back to a scripted call, so the demo never stalls.
+- H-13 (live home): rings in the dashboard, slows the sim to 30x, waits up to 7 minutes (LIVE_CALL_WAIT_S) for a browser call. No call finishes in time: it falls back to a scripted call, so the demo never stalls.
 - Everyone else gets a scripted call (about 8 seconds each, three at a time).

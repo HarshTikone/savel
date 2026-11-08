@@ -18,7 +18,7 @@ from api.state import state
 log = logging.getLogger("api.agent.manager")
 
 SCRIPTED_SECONDS = float(os.getenv("SCRIPTED_CALL_SECONDS", "8"))
-LIVE_WAIT_S = float(os.getenv("LIVE_CALL_WAIT_S", "180"))
+LIVE_WAIT_S = float(os.getenv("LIVE_CALL_WAIT_S", "420"))   # ring + a real conversation + webhook delay
 RETRY_STORM_MIN = float(os.getenv("CALL_RETRY_STORM_MINUTES", "20"))
 LIVE_FALLBACK = os.getenv("LIVE_FALLBACK", "scripted")
 LIVE_HOMES = {h.strip() for h in os.getenv("LIVE_HOMES", "H-13").split(",") if h.strip()}
@@ -66,10 +66,15 @@ def _set(home_id: str, call_status: str, outcome: str = "none") -> None:
 
 
 def _start_view(home: dict, run_id: str, source: str, phase: str) -> dict:
+    """New call view. A scripted call never pushes an in-progress live call off the dashboard panel."""
     global _current
-    _current = {"run_id": run_id, "home_id": home["id"], "phase": phase, "source": source,
-                "language": home.get("language") or "en", "transcript": [], "extracted": None}
-    return _current
+    view = {"run_id": run_id, "home_id": home["id"], "phase": phase, "source": source,
+            "language": home.get("language") or "en", "transcript": [], "extracted": None}
+    live_busy = (_current and _current["source"] == "live" and _current["run_id"] == run_id
+                 and _current["phase"] in ("ringing", "in_call", "extracting"))
+    if not (source == "scripted" and live_busy):
+        _current = view
+    return view
 
 
 def current_view() -> dict | None:
@@ -181,6 +186,7 @@ async def _live_attempt(home: dict, run_id: str, started) -> bool | None:
     if _stale(run_id):
         return True
     if lines is None:
+        v["phase"] = "no_answer"      # live view is over; the scripted fallback may take the panel
         return None
     if not _resident_spoke(lines):
         _set(hid, "no_answer")

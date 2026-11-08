@@ -174,3 +174,20 @@ async def test_home_details_fall_back_to_static_table(monkeypatch):
     assert m.current_view()["language"] == "es"
     state.run_id = "stop"           # abandon the shy retry wait
     await settle("H-18")
+
+
+async def test_scripted_call_does_not_replace_active_live_view(monkeypatch):
+    monkeypatch.setattr(m, "LIVE_HOMES", {"H-13"})
+    state.homes_cache = [mk("H-13"), mk("H-05", medical_needs=["oxygen"])]
+    await m.trigger_call("H-13", "warning")
+    for _ in range(50):
+        if "H-13" in m._live_waiters:
+            break
+        await asyncio.sleep(0.02)
+    await m.trigger_call("H-05", "warning")
+    await settle("H-05")
+    v = m.current_view()
+    assert v["home_id"] == "H-13" and v["source"] == "live" and v["phase"] == "ringing"
+    await m.handle_live_transcript("H-13", ["SAVEL: hi", "Resident: no heat, I need help"])
+    await settle("H-13")
+    assert m.current_view()["phase"] == "done"

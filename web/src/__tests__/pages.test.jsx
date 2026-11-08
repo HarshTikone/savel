@@ -23,6 +23,16 @@ describe('story', () => {
     expect(back.has('help') && back.has('normal')).toBe(true)
     expect(STORY_STEPS).toHaveLength(7)
   })
+  it('a new power cut starts the story over', () => {
+    const events = [
+      { type: 'house_power_cut', home_id: 'H-13' },
+      { type: 'help_delivered', home_id: 'H-13' },
+      { type: 'threshold', home_id: 'H-13' },
+      { type: 'house_power_cut', home_id: 'H-13' },
+    ]
+    const r = reachedNow({ ...base, status: 'cooling', k_est: null }, 1, events)
+    expect([...r]).toEqual(['cut', 'cooling'])
+  })
   it('helped and heated homes leave the priority list', () => {
     const list = rankedHomes([base, { ...base, id: 'H-14', risk: 95, outcome: 'helped' }, { ...base, id: 'H-15', risk: 0, status: 'heated' }])
     expect(list.map((h) => h.id)).toEqual(['H-13'])

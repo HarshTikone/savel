@@ -6,7 +6,7 @@ const SHOW_DONE_MS = 12000   // a finished story stays green this long, then cle
 const memos = new Map()      // `${runId}|${homeId}` -> { max, power, doneAt, cleared }
 
 function callFailed(home) {
-  return !!home && (home.outcome === 'unreachable' || ['unreachable', 'no_answer'].includes(home.call_status))
+  return !!home && (home.call_result === 'unreachable' || home.outcome === 'unreachable' || ['unreachable', 'no_answer'].includes(home.call_status))
 }
 
 // Signals that a NEW incident is under way (ignores results left over from the last one).

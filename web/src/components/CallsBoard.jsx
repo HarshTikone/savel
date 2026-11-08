@@ -21,7 +21,8 @@ export default function CallsBoard({ calls, selectedId, onSelect }) {
       <ul className="calls-row">
         {calls.map((c) => {
           const p = PHASE[c.phase] || PHASE.done
-          const outcome = c.outcome && c.outcome !== 'none' ? OUTCOME_LABEL[c.outcome] : null
+          const res = c.result || (c.outcome && !['none', 'helped'].includes(c.outcome) ? c.outcome : null)
+          const outcome = res ? OUTCOME_LABEL[res] : null
           return (
             <li key={c.home_id}>
               <button type="button" className={`call-card ${p.tone}${c.home_id === selectedId ? ' selected' : ''}`} onClick={() => onSelect(c.home_id)}>
@@ -30,7 +31,8 @@ export default function CallsBoard({ calls, selectedId, onSelect }) {
                   <span className="src">{c.source === 'live' ? <><Mic size={11} /> Live</> : <><Bot size={11} /> Auto</>}</span>
                 </span>
                 <span className="call-card-phase"><p.icon size={13} /> {p.label}{c.phase === 'ringing' && c.ring_left_s != null ? ` · ${c.ring_left_s}s` : ''}</span>
-                {outcome && <span className={`call-card-out ${['needs_help', 'medical', 'unreachable'].includes(c.outcome) ? 'bad' : ''}`}>{outcome}</span>}
+                {outcome && <span className={`call-card-out ${['needs_help', 'medical', 'unreachable'].includes(res) ? 'bad' : ''}`}>{outcome}</span>}
+                {c.outcome === 'helped' && <span className="call-card-out">✓ Help delivered</span>}
               </button>
             </li>
           )

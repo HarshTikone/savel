@@ -21,7 +21,9 @@ function Kpi({ icon: Icon, label, value, tone }) {
 export default function AgentPage({ data, voice, calls = [], homesById = {} }) {
   const { homes } = data
   const byId = Object.fromEntries(homes.map((h) => [h.id, h]))
-  const withHome = calls.map((c) => ({ ...c, home: byId[c.home_id] }))
+  // What the call itself found, kept even after help is delivered.
+  const resultOf = (c) => c.result || (c.outcome && !['none', 'helped'].includes(c.outcome) ? c.outcome : null)
+  const withHome = calls.map((c) => ({ ...c, res: resultOf(c), home: byId[c.home_id] }))
   const active = withHome.filter((c) => ACTIVE.includes(c.phase))
   const finished = withHome.filter((c) => !ACTIVE.includes(c.phase))
   const count = (f) => withHome.filter(f).length
@@ -32,7 +34,7 @@ export default function AgentPage({ data, voice, calls = [], homesById = {} }) {
       block: b,
       active: inBlock.filter((c) => ACTIVE.includes(c.phase)).length,
       done: inBlock.filter((c) => !ACTIVE.includes(c.phase)).length,
-      help: inBlock.filter((c) => ['needs_help', 'medical', 'unreachable'].includes(c.outcome)).length,
+      help: inBlock.filter((c) => ['needs_help', 'medical', 'unreachable'].includes(c.res) && c.outcome !== 'helped').length,
     }
   })
   const areasNow = areas.filter((a) => a.active > 0).length
@@ -44,9 +46,9 @@ export default function AgentPage({ data, voice, calls = [], homesById = {} }) {
         <Kpi icon={Activity} label="Calling right now" value={active.length} tone={active.length ? 'live' : ''} />
         <Kpi icon={MapPin} label="Areas being called" value={areasNow} />
         <Kpi icon={PhoneCall} label="Ringing" value={count((c) => c.phase === 'ringing')} />
-        <Kpi icon={CheckCircle2} label="Calls completed" value={count((c) => c.phase === 'done')} />
-        <Kpi icon={HeartPulse} label="Need help or medical" value={count((c) => ['needs_help', 'medical'].includes(c.outcome))} tone={count((c) => ['needs_help', 'medical'].includes(c.outcome)) ? 'bad' : ''} />
-        <Kpi icon={PhoneOff} label="No answer" value={count((c) => c.outcome === 'unreachable')} tone={count((c) => c.outcome === 'unreachable') ? 'bad' : ''} />
+        <Kpi icon={CheckCircle2} label="Answered" value={count((c) => ['ok', 'needs_help', 'medical', 'leaving'].includes(c.res))} />
+        <Kpi icon={HeartPulse} label="Need help or medical" value={count((c) => ['needs_help', 'medical'].includes(c.res))} tone={count((c) => ['needs_help', 'medical'].includes(c.res)) ? 'bad' : ''} />
+        <Kpi icon={PhoneOff} label="Not answered" value={count((c) => c.res === 'unreachable')} tone={count((c) => c.res === 'unreachable') ? 'bad' : ''} />
       </ul>
 
       <div className="a-grid">
@@ -93,14 +95,15 @@ export default function AgentPage({ data, voice, calls = [], homesById = {} }) {
           <div className="card-head"><h2>Finished calls</h2><span className="muted">{finished.length}</span></div>
           {finished.length === 0 ? <p className="muted">No finished calls yet.</p> : (
             <table className="calls-table">
-              <thead><tr><th>House</th><th>Area</th><th>Type</th><th>Result</th><th>Temperature</th></tr></thead>
+              <thead><tr><th>House</th><th>Area</th><th>Type</th><th>Call result</th><th>Help</th><th>Temperature</th></tr></thead>
               <tbody>
                 {finished.map((c) => (
                   <tr key={c.home_id}>
                     <td><strong>{c.home_id}</strong></td>
                     <td>Block {c.home ? c.home.block : '?'}</td>
                     <td>{c.source === 'live' ? 'Live voice' : 'AI call'}</td>
-                    <td className={['needs_help', 'medical', 'unreachable'].includes(c.outcome) ? 'bad' : 'ok'}>{OUTCOME_LABEL[c.outcome] || PHASE_LABEL[c.phase]}</td>
+                    <td className={['needs_help', 'medical', 'unreachable'].includes(c.res) ? 'bad' : 'ok'}>{c.res ? OUTCOME_LABEL[c.res] : PHASE_LABEL[c.phase]}</td>
+                    <td className={c.outcome === 'helped' ? 'ok' : ''}>{c.outcome === 'helped' ? '✓ Delivered' : '—'}</td>
                     <td>{c.home ? temp(c.home.temp_f) : '—'}</td>
                   </tr>
                 ))}

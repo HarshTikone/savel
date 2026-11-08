@@ -14,6 +14,7 @@ export function useVoiceCall(homesById = {}) {
   const [liveLines, setLiveLines] = useState([])
   const [ended, setEnded] = useState(false)
   const session = useRef(null)
+  const linesRef = useRef([])
 
   const answer = useCallback(async (entry) => {
     if (!entry || session.current) return
@@ -21,6 +22,7 @@ export function useVoiceCall(homesById = {}) {
     setActiveHome(entry.home_id)
     setStatus('connecting')
     setLiveLines([])
+    linesRef.current = []
     setEnded(false)
     setError('')
     try {
@@ -43,9 +45,12 @@ export function useVoiceCall(homesById = {}) {
           const text = m && (m.message || m.text)
           if (!text) return
           const who = m.source === 'ai' || m.role === 'agent' ? 'SAVEL' : 'Resident'
-          setLiveLines((prev) => [...prev, `${who}: ${text}`])
+          linesRef.current = [...linesRef.current, `${who}: ${text}`]
+          setLiveLines(linesRef.current)
         },
         onDisconnect: () => {
+          // Hand the backend what was said, so the result never waits on the ElevenLabs webhook.
+          post('/api/calls/live/ended', { home_id: entry.home_id, transcript: linesRef.current })
           session.current = null
           setEnded(true)
           setStatus('idle')

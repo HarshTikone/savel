@@ -303,3 +303,33 @@ async def test_resolve_closes_the_call_card(setup, monkeypatch):
     m.resolve("H-33")
     card = next(b for b in m.all_views() if b["home_id"] == "H-33")
     assert card["phase"] == "done" and card["outcome"] == "helped"
+
+
+async def test_help_keeps_what_the_call_found(setup, monkeypatch):
+    monkeypatch.setattr(m, "LIVE_ALL", True)
+    monkeypatch.setattr(m, "LIVE_WAIT_S", 0.2)
+    state.homes_cache = [mk("H-34")]
+    await m.trigger_call("H-34", "warning")
+    await settle("H-34")
+    m.resolve("H-34")
+    assert state.calls["H-34"] == {"call_status": "done", "outcome": "helped", "call_result": "unreachable"}
+    card = next(b for b in m.all_views() if b["home_id"] == "H-34")
+    assert card["result"] == "unreachable" and card["outcome"] == "helped"
+
+
+async def test_browser_transcript_finishes_call_and_webhook_copy_is_ignored(setup, monkeypatch):
+    monkeypatch.setattr(m, "LIVE_ALL", True)
+    state.homes_cache = [mk("H-35b")]
+    await m.trigger_call("H-35b", "warning")
+    for _ in range(50):
+        if "H-35b" in m._live_waiters:
+            break
+        await asyncio.sleep(0.02)
+    m.mark_live_answered("H-35b")
+    assert m.mark_live_ended("H-35b")
+    assert m.current_view()["phase"] == "extracting"
+    lines = ["SAVEL: Is it cold?", "Resident: Yes, no heat, I need help."]
+    assert await m.handle_live_transcript("H-35b", lines)          # browser copy
+    await settle("H-35b")
+    assert state.calls["H-35b"]["outcome"] == "needs_help"
+    assert not await m.handle_live_transcript("H-35b", lines)      # webhook copy arrives later

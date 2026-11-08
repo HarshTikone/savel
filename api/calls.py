@@ -41,6 +41,20 @@ async def calls_live_declined(body: dict):
     return Response(status_code=204)
 
 
+@router.post("/api/calls/live/ended", status_code=204)
+async def calls_live_ended(body: dict):
+    """The browser call hung up. The browser also sends what was said, so the result never waits
+    on the ElevenLabs webhook; whichever transcript arrives first is used, the other is ignored."""
+    hid = str(body.get("home_id", ""))
+    manager.mark_live_ended(hid)
+    lines = [str(x) for x in (body.get("transcript") or []) if str(x).strip()][:80]
+    if hid and lines:
+        t = asyncio.create_task(manager.handle_live_transcript(hid, lines))
+        _bg.add(t)
+        t.add_done_callback(_bg.discard)
+    return Response(status_code=204)
+
+
 @router.post("/api/calls/webhook", status_code=204)
 async def calls_webhook(request: Request):
     raw = await request.body()

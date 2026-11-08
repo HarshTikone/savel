@@ -153,8 +153,9 @@ async def _compute() -> None:
             h60 = hours_to(temp, out, 60, k_pred)
             h50 = hours_to(temp, out, 50, k_pred)
         call = state.calls.get(hid)
-        if call and call.get("outcome") == "helped" and not heating:
-            # The house lost heat again after help: a new incident, so start fresh.
+        power_now = block_power.get(h["block"], True) and hid not in houses_off   # simulator truth, no report lag
+        if call and call.get("outcome") == "helped" and not power_now:
+            # The house lost power again after help: a new incident, so start fresh.
             state.calls.pop(hid, None)
             call = None
         call_status = (call or {}).get("call_status", "none")
@@ -168,6 +169,8 @@ async def _compute() -> None:
             "hours_to_50": None if h50 is None else round(h50, 2),
             "status": st, "risk": 0, "call_status": call_status, "outcome": outcome,
             "trend": "heating" if heating else ("falling" if declining else "holding"),
+            "call_result": (call or {}).get("call_result") or (
+                outcome if outcome in ("ok", "needs_help", "medical", "leaving", "unreachable") else None),
             "slope_f_per_h": None if slope is None or heating else round(slope, 2),
             "age_band": h["age_band"],
             "medical_needs": [m for m in (h["medical_needs"] or "").split(",") if m],

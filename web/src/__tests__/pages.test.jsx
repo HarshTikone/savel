@@ -114,9 +114,12 @@ describe('AI agent page', () => {
     const calls = [
       { home_id: 'H-13', phase: 'in_call', source: 'live', outcome: 'none', last: 'Resident: it is freezing' },
       { home_id: 'H-27', phase: 'ringing', source: 'live', outcome: 'none', last: '', ring_left_s: 12 },
-      { home_id: 'H-14', phase: 'done', source: 'live', outcome: 'medical', last: '' },
+      { home_id: 'H-14', phase: 'done', source: 'live', outcome: 'medical', result: 'medical', last: '' },
+      { home_id: 'H-16', phase: 'no_answer', source: 'live', outcome: 'helped', result: 'unreachable', last: '' },
     ]
     render(<AgentPage data={data} voice={null} calls={calls} />)
+    expect(screen.getByText('Not answered', { selector: '.tile-label' }).previousSibling.textContent).toBe('1')   // still counted after help
+    expect(screen.getByText('✓ Delivered')).toBeInTheDocument()
     expect(screen.getByText('Calling right now', { selector: '.tile-label' }).previousSibling.textContent).toBe('2')
     expect(screen.getByText('Areas being called').previousSibling.textContent).toBe('2')
     expect(screen.getByText('Resident: it is freezing')).toBeInTheDocument()
@@ -139,6 +142,12 @@ describe('story lifecycle', () => {
     const cut = useStory({ ...base, power_on: false, heating: false, status: 'cooling', outcome: 'none', call_status: 'none' }, null, [], 'r1', t0 + 21000)
     expect(cut[0].state).toBe('done')
     expect(cut[5].state).toBe('todo')                                              // help not pre-ticked
+  })
+  it('a call that was not answered stays red after help is delivered', () => {
+    _resetStoriesForTests()
+    const steps = useStory({ ...base, power_on: true, heating: true, status: 'recovering', call_status: 'done', outcome: 'helped', call_result: 'unreachable' }, null, [], 'r3', 0)
+    expect(steps.find((s) => s.key === 'call').state).toBe('failed')
+    expect(steps.find((s) => s.key === 'help').state).toBe('done')
   })
   it('an unanswered call shows red and the story carries on', () => {
     _resetStoriesForTests()

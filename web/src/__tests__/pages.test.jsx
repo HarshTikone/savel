@@ -201,6 +201,7 @@ describe('check-in board clears settled houses', () => {
   it('a helped house back to normal leaves the board after 12 s; others stay', () => {
     _resetSettledForTests()
     const done = { ...base, id: 'H-07', status: 'heated', outcome: 'helped', heating: true, power_on: true }
+    expect(callSettled({ ...done, status: 'recovering' }, 'r9', -1000)).toBe(false)   // watched it warming up
     expect(callSettled(done, 'r9', 0)).toBe(false)
     expect(callSettled(done, 'r9', 5000)).toBe(false)
     expect(callSettled(done, 'r9', 13000)).toBe(true)
@@ -211,10 +212,17 @@ describe('check-in board clears settled houses', () => {
     _resetSettledForTests()
     const homes = [{ ...base, id: 'H-01', status: 'heated', outcome: 'helped' }, { ...base, id: 'H-02', status: 'warning', outcome: 'unreachable' }]
     const calls = [{ home_id: 'H-01', phase: 'no_answer', source: 'live', outcome: 'helped', result: 'unreachable' }, { home_id: 'H-02', phase: 'no_answer', source: 'live', outcome: 'unreachable', result: 'unreachable' }]
-    callSettled(homes[0], 'r10', Date.now() - 20000)        // H-01 has been back to normal for 20 s
+    // H-01 was already back to normal when the page opened, so it is gone at once
     render(<CallsBoard calls={calls} homes={homes} runId="r10" selectedId={null} onSelect={() => {}} />)
     expect(screen.queryByText('H-01')).toBeNull()
     expect(screen.getByText('H-02')).toBeInTheDocument()
     expect(screen.getByText('1 house called')).toBeInTheDocument()
+  })
+})
+
+describe('reload', () => {
+  it('a house already settled when the page opens is cleared at once', () => {
+    _resetSettledForTests()
+    expect(callSettled({ ...base, id: 'H-02', status: 'heated', outcome: 'helped' }, 'r11', 0)).toBe(true)
   })
 })

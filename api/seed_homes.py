@@ -39,13 +39,22 @@ async def seed(conn) -> int:
     return len(homes)
 
 
-async def main() -> None:
-    conn = await asyncpg.connect(DATABASE_URL)
-    try:
-        n = await seed(conn)
-        print(f"seeded {n} homes")
-    finally:
-        await conn.close()
+async def main(attempts: int = 30) -> None:
+    """Retries for ~60 s: a brand-new TimescaleDB restarts once after its init scripts."""
+    for i in range(1, attempts + 1):
+        try:
+            conn = await asyncpg.connect(DATABASE_URL)
+            try:
+                n = await seed(conn)
+                print(f"seeded {n} homes")
+                return
+            finally:
+                await conn.close()
+        except (OSError, asyncpg.PostgresError) as e:
+            if i == attempts:
+                raise
+            print(f"seed attempt {i} failed ({e.__class__.__name__}), retrying")
+            await asyncio.sleep(2)
 
 
 if __name__ == "__main__":

@@ -25,7 +25,8 @@ LIVE_HOMES = {h.strip() for h in os.getenv("LIVE_HOMES", "H-13").split(",") if h
 
 _current: dict | None = None
 last_extracted: dict[str, dict] = {}     # home_id -> {"run_id", "source", "extracted"}
-_active: set[str] = set()
+_active: dict[str, str] = {}              # home_id -> run_id of the flow in progress
+_flows: dict[str, "asyncio.Task"] = {}
 _live_waiters: dict[str, asyncio.Future] = {}
 _tasks: set[asyncio.Task] = set()
 _sem: asyncio.Semaphore | None = None
@@ -181,7 +182,8 @@ async def _live_attempt(home: dict, run_id: str, started) -> bool | None:
     except asyncio.TimeoutError:
         lines = None
     finally:
-        _live_waiters.pop(hid, None)
+        if _live_waiters.get(hid) is fut:
+            del _live_waiters[hid]
         await set_live_call(False)
     if _stale(run_id):
         return True
@@ -238,16 +240,24 @@ async def _run(home_id: str, reason: str, run_id: str) -> None:
     except Exception:
         log.exception("call flow failed for %s", home_id)
     finally:
-        _active.discard(home_id)
+        if _active.get(home_id) == run_id:
+            del _active[home_id]
+        if _flows.get(home_id) is asyncio.current_task():
+            del _flows[home_id]
 
 
 async def trigger_call(home_id: str, reason: str) -> None:
     """Returns immediately; the call runs as a background task. At most one flow per home."""
-    if home_id in _active or not state.run_id:
+    run_id = state.run_id
+    if not run_id or _active.get(home_id) == run_id:
         return
-    _active.add(home_id)
+    stale = _flows.pop(home_id, None)       # a flow from an earlier run must not block this one
+    if stale and not stale.done():
+        stale.cancel()
+    _active[home_id] = run_id
     _set(home_id, "queued")
-    t = asyncio.create_task(_run(home_id, reason, state.run_id))
+    t = asyncio.create_task(_run(home_id, reason, run_id))
+    _flows[home_id] = t
     _tasks.add(t)
     t.add_done_callback(_tasks.discard)
 
@@ -258,11 +268,11 @@ async def handle_live_transcript(home_id: str, lines: list[str]) -> bool:
     if fut and not fut.done():
         fut.set_result(lines)
         return True
-    if not state.run_id or home_id in _active:
+    if not state.run_id or _active.get(home_id) == state.run_id:
         return False
     # Presenter started a call outside a trigger (e.g. the Call resident button): process it directly.
     run_id, home, started = state.run_id, _home(home_id), state.sim_now
-    _active.add(home_id)
+    _active[home_id] = run_id
     try:
         v = _start_view(home, run_id, "live", "in_call")
         v["transcript"][:] = lines
@@ -274,5 +284,6 @@ async def handle_live_transcript(home_id: str, lines: list[str]) -> bool:
         _set(home_id, "in_call")
         await _finish(home, run_id, "live", lines, started, v)
     finally:
-        _active.discard(home_id)
+        if _active.get(home_id) == run_id:
+            del _active[home_id]
     return True

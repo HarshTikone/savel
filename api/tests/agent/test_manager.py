@@ -191,3 +191,26 @@ async def test_scripted_call_does_not_replace_active_live_view(monkeypatch):
     await m.handle_live_transcript("H-13", ["SAVEL: hi", "Resident: no heat, I need help"])
     await settle("H-13")
     assert m.current_view()["phase"] == "done"
+
+
+async def test_stale_flow_from_previous_run_does_not_block_new_run(setup, monkeypatch):
+    monkeypatch.setattr(m, "LIVE_HOMES", {"H-13"})
+    state.homes_cache = [mk("H-13")]
+    await m.trigger_call("H-13", "warning")              # run r-test: live flow waits for a call
+    for _ in range(50):
+        if "H-13" in m._live_waiters:
+            break
+        await asyncio.sleep(0.02)
+    state.run_id = "r-new"                                # reset: new run, old flow still waiting
+    state.calls.clear()
+    await m.trigger_call("H-13", "warning")              # must start a fresh flow
+    assert m._active["H-13"] == "r-new"
+    for _ in range(50):
+        if state.calls.get("H-13", {}).get("call_status") == "ringing" and "H-13" in m._live_waiters:
+            break
+        await asyncio.sleep(0.02)
+    assert state.calls["H-13"]["call_status"] == "ringing"
+    assert setup["toggles"].count(True) == 2 and setup["toggles"].count(False) == 1   # old flow released its slot
+    await m.handle_live_transcript("H-13", ["SAVEL: hi", "Resident: no heat, need help"])
+    await settle("H-13")
+    assert state.calls["H-13"]["outcome"] == "needs_help" and m.current_view()["source"] == "live"

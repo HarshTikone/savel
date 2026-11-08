@@ -1,0 +1,30 @@
+{
+  "name": "savel-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173",
+    "test": "vitest",
+    "check:contract": "node scripts/check-contract.mjs"
+  },
+  "dependencies": {
+    "leaflet": "1.9.4",
+    "lucide-react": "0.460.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-leaflet": "4.2.1",
+    "recharts": "2.13.3"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "10.4.0",
+    "@testing-library/jest-dom": "6.6.3",
+    "@testing-library/react": "16.1.0",
+    "@vitejs/plugin-react": "4.3.4",
+    "jsdom": "25.0.1",
+    "vite": "5.4.11",
+    "vitest": "2.1.8"
+  }
+}

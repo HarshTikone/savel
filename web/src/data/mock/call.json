@@ -1,0 +1,11 @@
+{
+  "home_id": "H-13",
+  "phase": "in_call",
+  "source": "scripted",
+  "language": "en",
+  "transcript": [
+    "SAVEL: Hello, this is a simulated check-in. Is your heat working?",
+    "Resident: No, it went out an hour ago."
+  ],
+  "extracted": { "has_heat": false, "needs_help": true, "medical_issue": "oxygen concentrator", "can_leave": false }
+}

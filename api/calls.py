@@ -1,24 +1,51 @@
-"""STUB owned by Harsh: he replaces this file keeping `async trigger_call(home_id, reason)`,
-GET /api/calls/current and POST /api/calls/webhook."""
-from fastapi import APIRouter, Response
+"""Call endpoints. The flow itself lives in api/agent/manager.py; the loop imports trigger_call from here."""
+import asyncio
+import json
+import logging
+import os
 
-from api.state import state
+from fastapi import APIRouter, HTTPException, Request, Response
+
+from api.agent import briefing, elevenlabs
+
+from api.agent import manager
+from api.agent.manager import current_view, trigger_call  # noqa: F401  (trigger_call re-exported)
 
 router = APIRouter()
-
-
-async def trigger_call(home_id: str, reason: str) -> None:
-    """Returns immediately. The stub marks a scripted call as done with no outcome."""
-    state.add_event("call_started", home_id, f"Scripted check-in call to {home_id} ({reason})", "info")
-    state.calls[home_id] = {"call_status": "done", "outcome": "none"}
-    state.add_event("call_result", home_id, f"{home_id}: scripted stub, no outcome", "info")
+router.include_router(briefing.router)
+log = logging.getLogger("api.calls")
+_bg: set[asyncio.Task] = set()
 
 
 @router.get("/api/calls/current")
 async def calls_current():
-    return None
+    return current_view()
+
+
+@router.post("/api/calls/live/answered", status_code=204)
+async def calls_live_answered(body: dict):
+    """The dashboard connected the voice agent to a ringing live call."""
+    manager.mark_live_answered(str(body.get("home_id", "")))
+    return Response(status_code=204)
 
 
 @router.post("/api/calls/webhook", status_code=204)
-async def calls_webhook():
+async def calls_webhook(request: Request):
+    raw = await request.body()
+    unsigned_ok = os.getenv("ALLOW_UNSIGNED_WEBHOOK") == "1"   # local testing only
+    if not unsigned_ok and not elevenlabs.verify_signature(raw, request.headers.get("elevenlabs-signature")):
+        raise HTTPException(401, "bad signature")
+    try:
+        parsed = elevenlabs.parse_post_call(json.loads(raw or b"{}"))
+    except ValueError:
+        raise HTTPException(400, "invalid json")
+    if parsed is None:
+        return Response(status_code=204)          # audio or failure events: nothing to do
+    home_id, lines = parsed
+    if not home_id:
+        log.warning("webhook without home_id dynamic variable; ignored")
+        return Response(status_code=204)
+    t = asyncio.create_task(manager.handle_live_transcript(home_id, lines))   # extraction can take seconds
+    _bg.add(t)
+    t.add_done_callback(_bg.discard)
     return Response(status_code=204)

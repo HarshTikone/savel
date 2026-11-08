@@ -20,7 +20,7 @@ export function rankOf(homes, id) {
 // Who needs attention, most urgent first. Same order as the backend risk score.
 export function rankedHomes(homes) {
   return [...homes]
-    .filter((h) => h.risk > 0 && h.outcome !== 'helped' && h.status !== 'heated')
+    .filter((h) => h.risk > 0 && h.outcome !== 'helped' && !['heated', 'leaving', 'recovering'].includes(h.status))
     .sort((a, b) => b.risk - a.risk || (a.hours_to_50 ?? 99) - (b.hours_to_50 ?? 99) || a.id.localeCompare(b.id))
 }
 
@@ -57,7 +57,9 @@ export function stepDetail(key, home, rank) {
     case 'cut': return home.power_on === false ? 'No power at the house' : 'Power is back'
     case 'cooling': return home.slope_f_per_h != null ? `Falling ${Math.abs(home.slope_f_per_h).toFixed(1)}°F/h · ${fmtTemp(home.temp_f)}` : fmtTemp(home.temp_f)
     case 'threshold': return home.status === 'critical' ? `Below 50°F · ${fmtTemp(home.temp_f)}` : home.hours_to_50 != null ? `Below 60°F · 50°F in ${stormDuration(home.hours_to_50)}` : `Below 60°F · ${fmtTemp(home.temp_f)}`
-    case 'call': return { none: 'Waiting', queued: 'Queued', ringing: 'Ringing', in_call: 'On the call', done: 'Answered', no_answer: 'No answer', unreachable: 'Unreachable' }[home.call_status] || ''
+    case 'call':
+      if (home.outcome === 'unreachable' || home.call_status === 'unreachable') return 'Not answered · send help'
+      return { none: 'Waiting', queued: 'Queued', ringing: 'Ringing', in_call: 'On the call', done: 'Answered', no_answer: 'Not answered' }[home.call_status] || (home.outcome === 'helped' ? 'Closed' : '')
     case 'ranked': return rank ? `Priority #${rank}` : ''
     case 'help': return home.outcome === 'helped' ? 'Responder on site, power restored' : ''
     case 'normal': return home.status === 'heated' ? fmtTemp(home.temp_f) : home.status === 'recovering' ? `Warming · ${fmtTemp(home.temp_f)}` : ''

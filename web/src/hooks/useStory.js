@@ -1,7 +1,13 @@
-import { useRef } from 'react'
 import { STORY_STEPS, reachedNow } from '../lib/story'
 
 const SHOW_DONE_MS = 12000   // a finished story stays green this long, then clears for the next incident
+
+// Kept outside React so switching pages or re-mounting never restarts or forgets a story.
+const memos = new Map()      // `${runId}|${homeId}` -> { max, power, doneAt, cleared }
+
+function callFailed(home) {
+  return !!home && (home.outcome === 'unreachable' || ['unreachable', 'no_answer'].includes(home.call_status))
+}
 
 // Signals that a NEW incident is under way (ignores results left over from the last one).
 function liveSignals(home) {
@@ -10,35 +16,50 @@ function liveSignals(home) {
     || ['warning', 'critical'].includes(home.status) || ['ringing', 'in_call'].includes(home.call_status)
 }
 
+function todo() {
+  const steps = STORY_STEPS.map((s) => ({ ...s, state: 'todo' }))
+  steps.cleared = true
+  return steps
+}
+
 // Progress only moves forward during an incident; a later step marks earlier ones done.
-// A new power cut restarts it, and a finished story clears itself after SHOW_DONE_MS.
-export function useStory(home, rank, events, runId) {
-  const memo = useRef({ key: null, max: -1, power: null, doneAt: null, cleared: false })
-  const key = `${runId}|${home ? home.id : ''}`
-  if (memo.current.key !== key) memo.current = { key, max: -1, power: null, doneAt: null, cleared: false }
-  const m = memo.current
-  const power = home ? home.power_on : null
+// A new power cut restarts it, and a finished story clears itself SHOW_DONE_MS later.
+export function useStory(home, rank, events, runId, now = Date.now()) {
+  if (!home) return todo()
+  const key = `${runId}|${home.id}`
+  let m = memos.get(key)
+  if (!m) {
+    m = { max: -1, power: null, doneAt: null, cleared: false }
+    memos.set(key, m)
+  }
+  const power = home.power_on
   if (m.power === true && power === false) Object.assign(m, { max: -1, doneAt: null, cleared: false })
   m.power = power
 
   if (m.cleared) {
-    if (!liveSignals(home)) return STORY_STEPS.map((s) => ({ ...s, state: 'todo' }))
+    if (!liveSignals(home)) return todo()
     Object.assign(m, { cleared: false, max: -1, doneAt: null })
   }
-  const now = reachedNow(home, rank, events)
+  const reached = reachedNow(home, rank, events)
   STORY_STEPS.forEach((s, i) => {
-    if (now.has(s.key) && i > m.max) m.max = i
+    if (reached.has(s.key) && i > m.max) m.max = i
   })
   const last = STORY_STEPS.length - 1
   if (m.max === last) {
-    if (m.doneAt === null) m.doneAt = Date.now()
-    else if (Date.now() - m.doneAt > SHOW_DONE_MS) {
+    if (m.doneAt === null) m.doneAt = now
+    else if (now - m.doneAt > SHOW_DONE_MS) {
       Object.assign(m, { cleared: true, max: -1, doneAt: null })
-      return STORY_STEPS.map((s) => ({ ...s, state: 'todo' }))
+      return todo()
     }
   }
-  return STORY_STEPS.map((s, i) => ({
-    ...s,
-    state: i <= m.max ? 'done' : i === m.max + 1 ? 'current' : 'todo',
-  }))
+  const failed = callFailed(home)
+  const steps = STORY_STEPS.map((s, i) => {
+    let state = i <= m.max ? 'done' : i === m.max + 1 ? 'current' : 'todo'
+    if (s.key === 'call' && state === 'done' && failed) state = 'failed'   // red, but the story goes on
+    return { ...s, state }
+  })
+  steps.cleared = false
+  return steps
 }
+
+export function _resetStoriesForTests() { memos.clear() }

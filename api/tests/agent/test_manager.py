@@ -20,6 +20,8 @@ def setup(monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.setattr(m, "SCRIPTED_SECONDS", 0.4)
     monkeypatch.setattr(m, "LIVE_HOMES", set())
+    monkeypatch.setattr(m, "LIVE_ALL", False)        # these tests pick live homes explicitly
+    monkeypatch.setattr(m, "SLOW_FOR_LIVE", True)    # and check the slow-down hooks still pair up
     saved = []
     toggles = []
 
@@ -263,3 +265,41 @@ async def test_calls_board_lists_every_call(setup):
     board = m.all_views()
     assert {b["home_id"] for b in board} >= {"H-02", "H-03"}
     assert all(b["phase"] in ("done", "no_answer") for b in board if b["home_id"] in ("H-02", "H-03"))
+
+
+
+async def test_every_home_rings_live_at_once(setup, monkeypatch):
+    monkeypatch.setattr(m, "LIVE_ALL", True)
+    monkeypatch.setattr(m, "SLOW_FOR_LIVE", False)
+    monkeypatch.setattr(m, "LIVE_WAIT_S", 0.4)
+    state.homes_cache = [mk("H-31"), mk("H-32")]
+    await m.trigger_call("H-31", "warning")
+    await m.trigger_call("H-32", "warning")
+    for _ in range(50):
+        if {"H-31", "H-32"} <= set(m._live_waiters):
+            break
+        await asyncio.sleep(0.02)
+    ringing = [b for b in m.all_views() if b["phase"] == "ringing"]
+    assert {b["home_id"] for b in ringing} == {"H-31", "H-32"}
+    assert all(b["ring_left_s"] is not None for b in ringing)
+    assert m.mark_live_answered("H-31")                    # presenter picks H-31; H-32 keeps ringing
+    await settle("H-32")
+    assert state.calls["H-32"] == {"call_status": "unreachable", "outcome": "unreachable"}
+    assert await m.handle_live_transcript("H-31", ["SAVEL: Is it cold?", "Resident: Yes, no heat, I need help."])
+    await settle("H-31")
+    assert state.calls["H-31"]["outcome"] == "needs_help"
+    assert setup["toggles"] == []                            # ringing never slowed the storm
+
+
+async def test_resolve_closes_the_call_card(setup, monkeypatch):
+    monkeypatch.setattr(m, "LIVE_ALL", True)
+    state.homes_cache = [mk("H-33")]
+    await m.trigger_call("H-33", "warning")
+    for _ in range(50):
+        if "H-33" in m._live_waiters:
+            break
+        await asyncio.sleep(0.02)
+    m.mark_live_answered("H-33")
+    m.resolve("H-33")
+    card = next(b for b in m.all_views() if b["home_id"] == "H-33")
+    assert card["phase"] == "done" and card["outcome"] == "helped"

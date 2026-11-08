@@ -29,6 +29,7 @@ async def test_resolve_cancels_a_live_call_and_marks_helped(monkeypatch):
     async def noop(_on):
         return None
     monkeypatch.setattr(m, "set_live_call", noop)
+    monkeypatch.setattr(m, "LIVE_ALL", False)
     state.run_id = "r-test"
     m.set_live_home("H-21")
     assert m.LIVE_HOMES == {"H-21"}

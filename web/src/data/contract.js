@@ -27,7 +27,7 @@ export const OUTCOME_LABEL = {
   needs_help: 'Needs help',
   medical: 'Medical',
   leaving: 'Safe, leaving',
-  unreachable: 'No answer · send help',
+  unreachable: 'Not answered · send help',
   helped: 'Help delivered',
 }
 

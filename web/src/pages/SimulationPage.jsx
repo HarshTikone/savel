@@ -72,7 +72,7 @@ export default function SimulationPage({ data, sim, onHelp, helpPending }) {
                 <button type="button" className="btn-xl bad" disabled={sim.pending.house} onClick={() => sim.house('cut_house', home.id)}><ZapOff size={20} /> Cut power to {home.id}</button>
               )}
               <button type="button" className="btn-xl help" disabled={home.outcome === 'helped' || !!helpPending[home.id]} onClick={() => onHelp(home.id)}>
-                <Check size={20} strokeWidth={3} /> {home.outcome === 'helped' ? 'Help delivered' : 'Deliver help'}
+                <Check size={20} strokeWidth={3} /> {home.outcome === 'helped' && !steps.cleared ? 'Help delivered' : 'Deliver help'}
               </button>
               <button type="button" className="btn-xl ghost" disabled={sim.pending.vent} onClick={async () => { const on = !vent[home.id]; await sim.vent(on, home.id); setVent((v) => ({ ...v, [home.id]: on })) }}>
                 <Wind size={18} /> {vent[home.id] ? 'Clear furnace vent' : 'Block furnace vent (CO)'}

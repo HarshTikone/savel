@@ -16,6 +16,9 @@ import AccuracyPanel from './components/AccuracyPanel'
 import ShortcutHelp from './components/ShortcutHelp'
 import { useSimActions } from './hooks/useSimActions'
 import { useShortcuts } from './hooks/useShortcuts'
+import { useAutoAnswer } from './hooks/useAutoAnswer'
+import { useTrends } from './hooks/useTrends'
+import TrendStrip from './components/TrendStrip'
 
 function Panel({ title, area, children }) {
   return (
@@ -45,6 +48,9 @@ export default function App() {
 
   const data = useDashboardData({ onRunChange })
   const series = useSeries(selectedHomeId, data.runId)
+  const callHomeRec = data.call ? data.homes.find((h) => h.id === data.call.home_id) : null
+  const voice = useAutoAnswer(data.call, callHomeRec)
+  const trends = useTrends(data.runId)
 
   const actions = useSimActions({ state: data.state, ventBlocked, setVentBlocked, refresh: data.refresh })
   useShortcuts({
@@ -86,6 +92,7 @@ export default function App() {
       <div className="summary">
         <KpiStrip homes={data.homes} state={data.state} />
         <Headline homes={data.homes} />
+        <TrendStrip trends={trends} selectedId={selectedHomeId} />
       </div>
       <main className="grid">
         <Panel title="Map" area="map">
@@ -114,7 +121,7 @@ export default function App() {
           />
         </Panel>
         <Panel title="AI check-in call" area="call">
-          <CallPanel call={data.call} events={data.events} highlight={callHighlight} />
+          <CallPanel call={data.call} events={data.events} highlight={callHighlight} voice={voice} />
         </Panel>
         {!demoLayout && (
           <Panel title="Event log" area="events">

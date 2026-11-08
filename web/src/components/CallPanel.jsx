@@ -42,11 +42,37 @@ function Stepper({ phase }) {
   )
 }
 
-export default function CallPanel({ call, events = [], highlight }) {
+const VOICE_LABEL = {
+  ready: 'AI calls on: the voice agent answers automatically',
+  connecting: 'Connecting voice agent…',
+  talking: 'Voice agent on the line, speak as the resident',
+  error: 'Voice error',
+}
+
+function VoiceToggle({ voice }) {
+  if (!voice) return null
+  if (!voice.enabled) {
+    return (
+      <div className="voice-toggle">
+        <button type="button" onClick={voice.enable}>Enable AI calls</button>
+        {voice.error && <span className="muted"> {voice.error}</span>}
+      </div>
+    )
+  }
+  return (
+    <div className="voice-toggle">
+      <span className="muted">{VOICE_LABEL[voice.status] || VOICE_LABEL.ready}{voice.error ? `: ${voice.error}` : ''}</span>{' '}
+      <button type="button" onClick={voice.disable}>Turn off</button>
+    </div>
+  )
+}
+
+export default function CallPanel({ call, events = [], highlight, voice }) {
   if (!call) {
     const past = events.find((e) => e && e.type === 'call_result')
     return (
       <div className={`call${highlight ? ' highlight' : ''}`}>
+        <VoiceToggle voice={voice} />
         <p className="muted">No call in progress</p>
         {past && <p className="muted">Last call (past): {simClock(past.t)} · {past.text}</p>}
       </div>
@@ -63,6 +89,7 @@ export default function CallPanel({ call, events = [], highlight }) {
         </span>
         <span className="muted">Language: {call.language || 'Unavailable'}</span>
       </div>
+      <VoiceToggle voice={voice} />
       <Stepper phase={call.phase} />
       {lines.length === 0 ? (
         <p className="muted">Waiting for transcript…</p>

@@ -64,3 +64,5 @@ export const simReset = ({ prewarm } = {}) => {
   const q = prewarm === undefined ? '' : `?prewarm=${prewarm}`
   return request(`/api/sim/reset${q}`, { method: 'POST' })
 }
+
+export const getTrends = () => (isMock() ? Promise.resolve({ window: 15, blocks: [], homes: {} }) : request('/api/trends'))

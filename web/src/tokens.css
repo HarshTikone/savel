@@ -1,36 +1,65 @@
+/* Verdana Health design tokens */
 :root {
-  --bg: #0a0f1a;
-  --bg-2: #0e1524;
-  --surface: #121a2b;
-  --surface-2: #182236;
-  --text: #eef2f8;
-  --muted: #8d9ab0;
-  --line: #22304a;
-  --accent: #7c9cff;
-  --accent-2: #5b7cf5;
-  --good: #22c55e;
-  --status-heated: #22c55e;
-  --status-cooling: #facc15;
-  --status-warning: #fb923c;
-  --status-critical: #ef4444;
-  --status-critical-ring: #ef4444;
-  --status-leaving: #a78bfa;
-  --status-recovering: #38bdf8;
-  --sev-info: #8d9ab0;
-  --sev-warning: #fb923c;
-  --sev-critical: #ef4444;
-  --radius: 14px;
-  --shadow: 0 1px 0 rgba(255,255,255,0.03) inset, 0 8px 24px rgba(0,0,0,0.25);
-  --font-text: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  --navy: #0F172A;
+  --navy-hover: #020617;
+  --slate: #64748B;
+  --slate-600: #475569;
+  --sage: #059669;
+  --sage-hover: #047857;
+
+  --bg: #F8FAFC;
+  --bg-2: #F8FAFC;
+  --surface: #FFFFFF;
+  --surface-2: #F1F5F9;
+  --text: #0F172A;
+  --muted: #64748B;
+  --line: #E2E8F0;
+  --line-soft: #F1F5F9;
+  --accent: #059669;          /* interactive + positive only */
+  --accent-2: #0F172A;        /* primary actions */
+  --good: #22C55E;
+  --good-text: #16A34A;
+  --warn: #EAB308;
+  --warn-text: #CA8A04;
+  --bad: #EF4444;
+  --bad-text: #DC2626;
+  --info: #0EA5E9;
+  --info-text: #0284C7;
+
+  /* house status colors (map fills, rails); text uses a darker mix */
+  --status-heated: #22C55E;
+  --status-cooling: #EAB308;
+  --status-warning: #EA580C;
+  --status-critical: #EF4444;
+  --status-critical-ring: #EF4444;
+  --status-leaving: #64748B;
+  --status-recovering: #0EA5E9;
+  --sev-info: #64748B;
+  --sev-warning: #EA580C;
+  --sev-critical: #EF4444;
+
+  --radius-sm: 4px;
+  --radius: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.03);
+  --shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 4px 16px rgba(15, 23, 42, 0.07);
+  --shadow-lg: 0 8px 32px rgba(15, 23, 42, 0.10);
+
+  --font-head: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-text: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Fira Code', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
 }
 html, body, #root { height: 100%; }
 body {
   margin: 0;
-  background: radial-gradient(1200px 600px at 20% -10%, #15203a 0%, var(--bg) 60%) fixed, var(--bg);
+  background: var(--bg);
   color: var(--text);
   font-family: var(--font-text);
-  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
+h1, h2, h3, h4 { font-family: var(--font-head); }
 .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }

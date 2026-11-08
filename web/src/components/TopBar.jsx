@@ -9,6 +9,7 @@ export default function TopBar({ page, state, connection }) {
         <span className="logo" aria-hidden="true"><Activity size={18} /></span>
         <span className="wordmark">SAVEL</span>
         <span className="tagline">Winter outage response</span>
+        <span className="sim-chip">Simulation</span>
       </div>
       <nav className="tabs" aria-label="Pages">
         <a href="#/" className={page === 'responder' ? 'active' : ''} aria-current={page === 'responder' ? 'page' : undefined}>

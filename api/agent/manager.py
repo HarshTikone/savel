@@ -47,8 +47,18 @@ def _stale(run_id: str) -> bool:
 
 
 def _home(home_id: str) -> dict:
-    return next((h for h in state.homes_cache if h["id"] == home_id),
-                {"id": home_id, "language": "en", "medical_needs": [], "age_band": None})
+    """Home details for a call. The loop spawns calls before it refreshes homes_cache, so fall back
+    to the static homes table (language, age, medical needs never change during a run)."""
+    cached = next((h for h in state.homes_cache if h["id"] == home_id), None)
+    if cached:
+        return cached
+    from api import loop  # lazy: api.loop imports api.calls, which imports this module
+    static = next((h for h in loop._static if h["id"] == home_id), None)
+    if static:
+        return {"id": home_id, "language": static.get("language") or "en",
+                "age_band": static.get("age_band"),
+                "medical_needs": [m for m in (static.get("medical_needs") or "").split(",") if m]}
+    return {"id": home_id, "language": "en", "medical_needs": [], "age_band": None}
 
 
 def _set(home_id: str, call_status: str, outcome: str = "none") -> None:

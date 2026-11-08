@@ -157,3 +157,20 @@ async def test_reset_hides_call_and_aborts():
     assert m.current_view() is None
     await settle("H-06")
     assert state.calls["H-06"]["call_status"] != "done"
+
+
+async def test_home_details_fall_back_to_static_table(monkeypatch):
+    from api import loop
+    state.homes_cache = []          # the loop has not cached this home yet
+    monkeypatch.setattr(loop, "_static", [{"id": "H-18", "language": "es", "age_band": "40-64", "medical_needs": "oxygen,heart"}])
+    h = m._home("H-18")
+    assert h["language"] == "es" and h["medical_needs"] == ["oxygen", "heart"]
+    await m.trigger_call("H-18", "warning")
+    for _ in range(100):
+        v = m.current_view()
+        if v and v["transcript"]:
+            break
+        await asyncio.sleep(0.05)
+    assert m.current_view()["language"] == "es"
+    state.run_id = "stop"           # abandon the shy retry wait
+    await settle("H-18")

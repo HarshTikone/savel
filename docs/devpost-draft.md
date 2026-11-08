@@ -38,18 +38,20 @@ Python, FastAPI, TimescaleDB, React, Leaflet, ElevenLabs Agents, Google Gemini, 
 
 **0:00-0:30 Problem.** "When the power goes out in a Buffalo winter, a house loses about five degrees an hour. Responders can see which blocks lost power. They cannot see which homes are getting dangerous, or which resident will never call for help. SAVEL answers that."
 
-**0:30-1:15 Cut the power (live).** Reset, cut Block B. "Each dot is a home with a temperature sensor. Watch the countdown." About 35 seconds later: "Warnings. Each home has its own predicted time to 60 and 50 F, from its own cooling rate. The trend check confirms it: nine of ten homes in the block are declining, so this is not one bad sensor."
+**0:30-1:00 Setup.** Two windows: the Responder page on the projector, the Simulation page on your laptop. "Forty homes, all warm. Each has a temperature sensor."
 
-**1:15-2:30 The call.** "SAVEL now calls the residents. Most are automated scripted check-ins for the demo. This one is live." The agent connects by itself. Speak as the resident: "Yes, it's freezing. I have oxygen and I can't leave." "It asks four questions and hangs up. Gemini turns the conversation into structured fields."
+**1:00-1:40 Cut one house (live).** On the Simulation page pick H-13 and press "Cut power to H-13". "No power at H-13. It's cooling. SAVEL is learning how fast this particular house loses heat." The story bar walks the steps: Power cut, then Cooling detected, then Threshold crossed. "After about ten readings it knows: this house hits 50 degrees in about two hours. That is the warning, before anyone is cold."
 
-**2:30-3:15 Ranking.** "The home jumps to the top: risk 100, because of cold, oxygen, and a call that said they need help. The score is plain arithmetic, so a responder can see why. Residents who do not answer rise too, because silence is a signal."
+**1:40-2:40 The call.** "SAVEL calls the resident by itself." The voice agent connects automatically. Speak as the resident: "It's freezing, no heat. I'm on oxygen and I can't drive." The transcript fills in live, then Gemini turns it into fields: no heat, needs help, medical, can't leave.
 
-**3:15-3:40 CO.** Block a vent: "A blocked vent with a running furnace raises carbon monoxide. Same dashboard, same ranking."
+**2:40-3:15 Ranked first, help delivered.** "H-13 jumps to number one in the priority list. The score is plain arithmetic, so a responder can see why." Press the green check, "Mark help delivered". "The responder is on site, the circuit is closed, power is back." The house turns from orange back to green as it warms up, and the story ends at Back to normal.
+
+**3:15-3:40 Scale.** "The same loop runs for a whole block": reset with the Block B outage to show ten homes ranked at once, or block a furnace vent to show carbon monoxide.
 
 **3:40-4:00 Honest close.** "This is a simulation with synthetic residents. It is decision support for responders, not dispatch. What it shows is the loop: predict, call, understand, rank. Thank you."
 
 ## With vs without SAVEL (for Q&A)
-Without: responders know a block has no power and start with the loudest calls. With: every home has a countdown, the quiet at-risk residents are called automatically within seconds of the warning, and the first list a responder opens is already ranked with the reason. Measure to report from the demo: seconds from power cut to first warning (about 35) and seconds from warning to a structured, ranked result for a live call (about 1 to 2 minutes, mostly the conversation).
+Without: responders know a block has no power and start with the loudest calls. With: every home has a countdown, the quiet at-risk residents are called automatically within seconds of the warning, and the first list a responder opens is already ranked with the reason. Measure to report from the demo: seconds from power cut to first warning (about 10 to 20 for one house) and seconds from warning to a structured, ranked result for a live call (about 1 to 2 minutes, mostly the conversation).
 
 ## Likely questions
 - *Is this real data?* No: simulated sensors and synthetic residents; the model and score are real code.
